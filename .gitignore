@@ -1,0 +1,24 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node / frontend
+node_modules/
+*.log
+
+# Composer
+vendor/
+composer.lock
+
+# Build artifacts
+/dist/
+/build/
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# WordPress
+wp-content/uploads/
+.env

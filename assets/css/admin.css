@@ -1,0 +1,261 @@
+/* Up Gutenberg Metabox - Styles d'administration */
+
+.ugm-metabox-config {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    padding: 0;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.ugm-metabox-header {
+    background: #f1f1f1;
+    border-bottom: 1px solid #ccd0d4;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ugm-metabox-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.ugm-metabox-config .form-table {
+    margin: 20px;
+    margin-bottom: 0;
+}
+
+.ugm-fields-section {
+    padding: 20px;
+    border-top: 1px solid #e1e1e1;
+    background: #fafafa;
+}
+
+.ugm-fields-section h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.ugm-field-config {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    margin-bottom: 15px;
+    padding: 0;
+}
+
+.ugm-field-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ugm-field-header h5 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+}
+
+.ugm-field-config .form-table {
+    margin: 15px;
+    margin-bottom: 0;
+}
+
+.ugm-field-config .form-table th {
+    width: 150px;
+    padding: 10px 0;
+}
+
+.ugm-field-config .form-table td {
+    padding: 10px 0;
+}
+
+.ugm-select-options {
+    padding: 15px;
+    border-top: 1px solid #e1e1e1;
+    background: #f9f9f9;
+}
+
+.ugm-select-options h6 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.ugm-option-config {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.ugm-option-config input[type="text"] {
+    margin: 0;
+}
+
+.ugm-actions {
+    margin-top: 30px;
+    padding: 20px 0;
+    border-top: 1px solid #e1e1e1;
+}
+
+.ugm-actions .button {
+    margin-right: 10px;
+}
+
+/* Boutons de suppression */
+.button-link-delete {
+    color: #a00;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.button-link-delete:hover {
+    color: #dc3232;
+}
+
+.remove-option {
+    background: #dc3232;
+    border-color: #dc3232;
+    color: #fff;
+}
+
+.remove-option:hover {
+    background: #c62d2d;
+    border-color: #c62d2d;
+}
+
+/* Animations */
+.ugm-metabox-config,
+.ugm-field-config {
+    transition: all 0.3s ease;
+}
+
+.ugm-metabox-config.removing,
+.ugm-field-config.removing {
+    opacity: 0;
+    transform: translateX(-20px);
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .ugm-metabox-header,
+    .ugm-field-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .ugm-option-config {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .ugm-option-config input[type="text"] {
+        margin-bottom: 5px;
+    }
+}
+
+/* États des champs */
+.ugm-field-config input:required:invalid {
+    border-color: #dc3232;
+}
+
+.ugm-field-config input:required:valid {
+    border-color: #46b450;
+}
+
+/* Messages d'aide */
+.ugm-help-text {
+    font-style: italic;
+    color: #666;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Indicateurs visuels */
+.ugm-required {
+    color: #dc3232;
+}
+
+.ugm-optional {
+    color: #666;
+    font-size: 11px;
+    font-style: italic;
+}
+
+/* Amélioration de l'accessibilité */
+.ugm-metabox-config:focus-within,
+.ugm-field-config:focus-within {
+    box-shadow: 0 0 0 1px #007cba;
+}
+
+/* Styles pour les metaboxes dans l'éditeur */
+.ugm-metabox-table {
+    width: 100%;
+}
+
+.ugm-metabox-table th {
+    width: 150px;
+    text-align: left;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.ugm-metabox-table td {
+    padding: 10px 0;
+}
+
+.ugm-metabox-table input,
+.ugm-metabox-table textarea,
+.ugm-metabox-table select {
+    width: 100%;
+    max-width: 400px;
+}
+
+.ugm-metabox-table .description {
+    margin-top: 5px;
+    font-style: italic;
+    color: #666;
+}
+
+/* Loading states */
+.ugm-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.ugm-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007cba;
+    border-radius: 50%;
+    animation: ugm-spin 1s linear infinite;
+}
+
+@keyframes ugm-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
