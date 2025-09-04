@@ -69,6 +69,9 @@ jQuery(document).ready(function($) {
         $('html, body').animate({
             scrollTop: $newField.offset().top - 50
         }, 500);
+
+        // Initialiser l'état des options de binding pour le nouveau champ
+        initBindingUIForField($newField);
     });
     
     /**
@@ -293,6 +296,35 @@ jQuery(document).ready(function($) {
 
     // Initialiser au chargement de la page
     initSortable();
+
+    /**
+     * Gestion de l'UI de Binding Gutenberg
+     */
+    function initBindingUIForField($field) {
+        const $checkbox = $field.find('.ugm-binding-checkbox');
+        const $opts = $field.find('.ugm-binding-options');
+        if ($checkbox.is(':checked')) {
+            $opts.show();
+        } else {
+            $opts.hide();
+        }
+    }
+
+    // Toggle au changement
+    $(document).on('change', '.ugm-binding-checkbox', function() {
+        const $field = $(this).closest('.ugm-field-config');
+        const $opts = $field.find('.ugm-binding-options');
+        if ($(this).is(':checked')) {
+            $opts.slideDown(150);
+        } else {
+            $opts.slideUp(150);
+        }
+    });
+
+    // Initialiser l'état pour les champs existants
+    $('.ugm-field-config').each(function() {
+        initBindingUIForField($(this));
+    });
     
     /**
      * Auto-générer le nom du champ basé sur le libellé

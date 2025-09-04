@@ -30,6 +30,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_metabox_config') {
                                 'type' => sanitize_text_field($field['type']),
                                 'description' => sanitize_text_field($field['description'])
                             );
+                            // Binding Gutenberg
+                            $clean_field['binding_enabled'] = !empty($field['binding_enabled']) ? 1 : 0;
+                            // Type de binding (optionnel, par défaut auto depuis type de champ)
+                            if (!empty($field['binding_type'])) {
+                                $allowed_binding_types = array('string','boolean','number','integer');
+                                $binding_type = sanitize_text_field($field['binding_type']);
+                                $clean_field['binding_type'] = in_array($binding_type, $allowed_binding_types, true) ? $binding_type : null;
+                            }
                             
                             if ($field['type'] === 'select' && !empty($field['options'])) {
                                 $clean_field['options'] = array();
@@ -181,6 +189,30 @@ $post_types = get_post_types(array('public' => true), 'objects');
                     <p class="description"><?php _e('Description optionnelle qui apparaîtra sous le champ', 'up-gutenberg-metabox'); ?></p>
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><?php _e('Binding Gutenberg', 'up-gutenberg-metabox'); ?></th>
+                <td>
+                    <label>
+                        <input type="checkbox" class="ugm-binding-checkbox" name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][binding_enabled]" value="1">
+                        <?php _e('Rendre ce champ accessible au binding des blocs', 'up-gutenberg-metabox'); ?>
+                    </label>
+                    <div class="ugm-binding-options" style="display:none; margin-top:8px;">
+                        <label>
+                            <?php _e('Type de donnée (REST)', 'up-gutenberg-metabox'); ?>
+                            <select name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][binding_type]">
+                                <option value="">
+                                    <?php _e('Automatique (selon le type du champ)', 'up-gutenberg-metabox'); ?>
+                                </option>
+                                <option value="string">string</option>
+                                <option value="boolean">boolean</option>
+                                <option value="number">number</option>
+                                <option value="integer">integer</option>
+                            </select>
+                        </label>
+                        <p class="description"><?php _e('Active show_in_rest et propose ce champ au Block Binding. Choisissez un type si nécessaire.', 'up-gutenberg-metabox'); ?></p>
+                    </div>
+                </td>
+            </tr>
         </table>
         
         <div class="ugm-select-options" style="display: none;">
@@ -304,6 +336,30 @@ function render_field_config($field, $metabox_index, $field_index) {
             <td>
                 <input type="text" id="field_description_<?php echo $metabox_index; ?>_<?php echo $field_index; ?>" name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][description]" value="<?php echo esc_attr($field['description']); ?>" class="regular-text">
                 <p class="description"><?php _e('Description optionnelle qui apparaîtra sous le champ', 'up-gutenberg-metabox'); ?></p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><?php _e('Binding Gutenberg', 'up-gutenberg-metabox'); ?></th>
+            <td>
+                <label>
+                    <input type="checkbox" class="ugm-binding-checkbox" name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][binding_enabled]" value="1" <?php checked(!empty($field['binding_enabled'])); ?>>
+                    <?php _e('Rendre ce champ accessible au binding des blocs', 'up-gutenberg-metabox'); ?>
+                </label>
+                <div class="ugm-binding-options" style="<?php echo empty($field['binding_enabled']) ? 'display:none;' : ''; ?> margin-top:8px;">
+                    <label>
+                        <?php _e('Type de donnée (REST)', 'up-gutenberg-metabox'); ?>
+                        <select name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][binding_type]">
+                            <option value="" <?php selected(empty($field['binding_type'])); ?>><?php _e('Automatique (selon le type du champ)', 'up-gutenberg-metabox'); ?></option>
+                            <?php
+                            $types = array('string','boolean','number','integer');
+                            foreach ($types as $t) {
+                                printf('<option value="%1$s" %2$s>%1$s</option>', esc_attr($t), selected(isset($field['binding_type']) && $field['binding_type'] === $t, true, false));
+                            }
+                            ?>
+                        </select>
+                    </label>
+                    <p class="description"><?php _e('Active show_in_rest et propose ce champ au Block Binding. Choisissez un type si nécessaire.', 'up-gutenberg-metabox'); ?></p>
+                </div>
             </td>
         </tr>
     </table>
