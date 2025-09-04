@@ -345,6 +345,7 @@ function render_metabox_config($metabox, $index, $post_types) {
             <?php _e('Ajouter un Champ', 'up-gutenberg-metabox'); ?>
         </button>
     </div>
+    </div>
     <?php
 }
 
@@ -472,6 +473,7 @@ function render_field_config($field, $metabox_index, $field_index) {
             <?php endif; ?>
         </div>
         <button type="button" class="button button-small add-option"><?php _e('Ajouter une Option', 'up-gutenberg-metabox'); ?></button>
+    </div>
     </div>
     <?php
 }
