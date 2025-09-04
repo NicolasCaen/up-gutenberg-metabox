@@ -91,7 +91,7 @@ Le plugin utilise les hooks WordPress standards :
 - **WordPress** : 5.9 ou supérieur
 - **PHP** : 7.4 ou supérieur
 - **Compatible** avec les thèmes FSE (Full Site Editing)
-- **Testé** jusqu'à WordPress 6.3
+- **Testé** jusqu'à WordPress 6.6
 
 ## Support
 
@@ -132,6 +132,12 @@ array(
 - **Ctrl/Cmd + N** : Ajouter une nouvelle metabox
 
 ## Changelog
+
+### Version 1.1.1
+- Correctifs HTML dans `includes/admin-page.php` (fermetures `div` manquantes/orphelines) pour restaurer une structure DOM valide.
+- Amélioration de la robustesse du tri (jQuery UI Sortable) via un nettoyage défensif de la structure des champs dans `assets/js/admin.js` (aplatissement de `.ugm-field-config` imbriqués par erreur).
+- UX: ouverture automatique des détails de la nouvelle metabox et des options du nouveau champ.
+- Petites améliorations UI (alignements/actions/hover) dans `assets/css/admin.css`.
 
 ### Version 1.1.0
 - Documentation: page de documentation intégrée et simplifiée (`includes/docs-page.php`) avec Quick Start pour le Block Binding.
