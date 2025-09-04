@@ -203,7 +203,9 @@ jQuery(document).ready(function($) {
     function updateMetaboxIndexes() {
         $('#ugm-metaboxes-container .ugm-metabox-config').each(function(index) {
             $(this).data('index', index);
-            $(this).find('.ugm-metabox-header h3').text('Metabox #' + (index + 1));
+            // Rafraîchir le titre affiché à partir de l'input
+            const titleVal = $(this).find('input[name*="[title]"]').val();
+            $(this).find('.ugm-metabox-title').text(titleVal ? titleVal : 'Metabox sans titre');
             
             // Mettre à jour tous les attributs name et id
             $(this).find('input, select, textarea').each(function() {
@@ -239,7 +241,9 @@ jQuery(document).ready(function($) {
             
             $(this).find('.ugm-field-config').each(function(index) {
                 $(this).data('field-index', index);
-                $(this).find('.ugm-field-header h5').text('Champ #' + (index + 1));
+                // Rafraîchir le titre du champ à partir du nom
+                const fieldNameVal = $(this).find('input[name*="[name]"]').val();
+                $(this).find('.ugm-field-title').text(fieldNameVal ? fieldNameVal : 'Sans nom');
                 
                 // Mettre à jour tous les attributs name et id
                 $(this).find('input, select, textarea').each(function() {
@@ -298,6 +302,16 @@ jQuery(document).ready(function($) {
     // Initialiser au chargement de la page
     initSortable();
 
+    // Initialiser les titres présents (metaboxes et champs) à partir des valeurs existantes
+    $('.ugm-metabox-config').each(function() {
+        const titleVal = $(this).find('input[name*="[title]"]').val();
+        $(this).find('.ugm-metabox-title').text(titleVal ? titleVal : 'Metabox sans titre');
+    });
+    $('.ugm-field-config').each(function() {
+        const fieldNameVal = $(this).find('input[name*="[name]"]').val();
+        $(this).find('.ugm-field-title').text(fieldNameVal ? fieldNameVal : 'Sans nom');
+    });
+
     /**
      * Gestion de l'UI de Binding Gutenberg
      */
@@ -350,6 +364,54 @@ jQuery(document).ready(function($) {
         const $field = $(this);
         initBindingUIForField($field);
         initDerivedUIForField($field);
+    });
+
+    /**
+     * Toggle détails de metabox
+     */
+    $(document).on('click', '.ugm-toggle-metabox', function() {
+        const $btn = $(this);
+        const $config = $btn.closest('.ugm-metabox-config');
+        const $details = $config.children('.ugm-metabox-details');
+        const expanded = $btn.attr('aria-expanded') === 'true';
+        if (expanded) {
+            $details.slideUp(150);
+            $btn.attr('aria-expanded', 'false').text('Afficher les détails');
+        } else {
+            $details.slideDown(150);
+            $btn.attr('aria-expanded', 'true').text('Masquer les détails');
+        }
+    });
+
+    /**
+     * Toggle options d'un champ
+     */
+    $(document).on('click', '.ugm-toggle-field', function() {
+        const $btn = $(this);
+        const $config = $btn.closest('.ugm-field-config');
+        const $body = $config.children('.ugm-field-body');
+        const expanded = $btn.attr('aria-expanded') === 'true';
+        if (expanded) {
+            $body.slideUp(150);
+            $btn.attr('aria-expanded', 'false').text('Afficher les options');
+        } else {
+            $body.slideDown(150);
+            $btn.attr('aria-expanded', 'true').text('Masquer les options');
+        }
+    });
+
+    /**
+     * Mise à jour en direct des en-têtes
+     */
+    $(document).on('input', 'input[name*="[title]"]', function() {
+        const $wrap = $(this).closest('.ugm-metabox-config');
+        const val = $(this).val().trim();
+        $wrap.find('.ugm-metabox-title').text(val || 'Metabox sans titre');
+    });
+    $(document).on('input', 'input[name*="[name]"]', function() {
+        const $wrap = $(this).closest('.ugm-field-config');
+        const val = $(this).val().trim();
+        $wrap.find('.ugm-field-title').text(val || 'Sans nom');
     });
     
     /**
