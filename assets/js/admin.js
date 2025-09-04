@@ -70,8 +70,9 @@ jQuery(document).ready(function($) {
             scrollTop: $newField.offset().top - 50
         }, 500);
 
-        // Initialiser l'état des options de binding pour le nouveau champ
+        // Initialiser l'état des options de binding et dérivées pour le nouveau champ
         initBindingUIForField($newField);
+        initDerivedUIForField($newField);
     });
     
     /**
@@ -321,9 +322,34 @@ jQuery(document).ready(function($) {
         }
     });
 
+    /**
+     * Gestion de l'UI de Donnée Dérivée
+     */
+    function initDerivedUIForField($field) {
+        const $checkbox = $field.find('.ugm-derived-checkbox');
+        const $opts = $field.find('.ugm-derived-options');
+        if ($checkbox.is(':checked')) {
+            $opts.show();
+        } else {
+            $opts.hide();
+        }
+    }
+
+    $(document).on('change', '.ugm-derived-checkbox', function() {
+        const $field = $(this).closest('.ugm-field-config');
+        const $opts = $field.find('.ugm-derived-options');
+        if ($(this).is(':checked')) {
+            $opts.slideDown(150);
+        } else {
+            $opts.slideUp(150);
+        }
+    });
+
     // Initialiser l'état pour les champs existants
     $('.ugm-field-config').each(function() {
-        initBindingUIForField($(this));
+        const $field = $(this);
+        initBindingUIForField($field);
+        initDerivedUIForField($field);
     });
     
     /**

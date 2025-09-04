@@ -38,6 +38,21 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_metabox_config') {
                                 $binding_type = sanitize_text_field($field['binding_type']);
                                 $clean_field['binding_type'] = in_array($binding_type, $allowed_binding_types, true) ? $binding_type : null;
                             }
+
+                            // Dérivé: activation + filtre
+                            $clean_field['derived_enabled'] = !empty($field['derived_enabled']) ? 1 : 0;
+                            if (!empty($field['derived_filter'])) {
+                                $filter_slug = sanitize_text_field($field['derived_filter']);
+                                // Valider par rapport aux filtres disponibles
+                                if (class_exists('UpGutenbergMetabox')) {
+                                    $avail = UpGutenbergMetabox::get_derived_filters_labels();
+                                    if (isset($avail[$filter_slug])) {
+                                        $clean_field['derived_filter'] = $filter_slug;
+                                    }
+                                } else {
+                                    $clean_field['derived_filter'] = $filter_slug;
+                                }
+                            }
                             
                             if ($field['type'] === 'select' && !empty($field['options'])) {
                                 $clean_field['options'] = array();
@@ -213,6 +228,29 @@ $post_types = get_post_types(array('public' => true), 'objects');
                     </div>
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><?php _e('Donnée dérivée', 'up-gutenberg-metabox'); ?></th>
+                <td>
+                    <label>
+                        <input type="checkbox" class="ugm-derived-checkbox" name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][derived_enabled]" value="1">
+                        <?php _e('Générer et sauvegarder une valeur dérivée (clé : _formatted)', 'up-gutenberg-metabox'); ?>
+                    </label>
+                    <div class="ugm-derived-options" style="display:none; margin-top:8px;">
+                        <label>
+                            <?php _e('Filtre de formatage', 'up-gutenberg-metabox'); ?>
+                            <select name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][derived_filter]">
+                                <?php
+                                $filters = class_exists('UpGutenbergMetabox') ? UpGutenbergMetabox::get_derived_filters_labels() : array();
+                                foreach ($filters as $slug => $label) {
+                                    printf('<option value="%s">%s</option>', esc_attr($slug), esc_html($label));
+                                }
+                                ?>
+                            </select>
+                        </label>
+                        <p class="description"><?php _e('Choisissez comment formater la valeur dérivée. Extensible via le hook add-gutenberg-metabox-filter.', 'up-gutenberg-metabox'); ?></p>
+                    </div>
+                </td>
+            </tr>
         </table>
         
         <div class="ugm-select-options" style="display: none;">
@@ -254,6 +292,7 @@ function render_metabox_config($metabox, $index, $post_types) {
                 <input type="text" id="metabox_title_<?php echo $index; ?>" name="metaboxes[<?php echo $index; ?>][title]" value="<?php echo esc_attr($metabox['title']); ?>" class="regular-text" required>
             </td>
         </tr>
+        
         <tr>
             <th scope="row"><?php _e('Post Types', 'up-gutenberg-metabox'); ?></th>
             <td>
