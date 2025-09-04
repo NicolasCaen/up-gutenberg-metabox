@@ -401,6 +401,30 @@ function render_field_config($field, $metabox_index, $field_index) {
                 </div>
             </td>
         </tr>
+        <tr>
+            <th scope="row"><?php _e('Donnée dérivée', 'up-gutenberg-metabox'); ?></th>
+            <td>
+                <label>
+                    <input type="checkbox" class="ugm-derived-checkbox" name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][derived_enabled]" value="1" <?php checked(!empty($field['derived_enabled'])); ?>>
+                    <?php _e('Générer et sauvegarder une valeur dérivée (clé : _formatted)', 'up-gutenberg-metabox'); ?>
+                </label>
+                <div class="ugm-derived-options" style="<?php echo empty($field['derived_enabled']) ? 'display:none;' : ''; ?> margin-top:8px;">
+                    <label>
+                        <?php _e('Filtre de formatage', 'up-gutenberg-metabox'); ?>
+                        <select name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][derived_filter]">
+                            <?php
+                            $filters = class_exists('UpGutenbergMetabox') ? UpGutenbergMetabox::get_derived_filters_labels() : array();
+                            $current = isset($field['derived_filter']) ? $field['derived_filter'] : '';
+                            foreach ($filters as $slug => $label) {
+                                printf('<option value="%s" %s>%s</option>', esc_attr($slug), selected($current === $slug, true, false), esc_html($label));
+                            }
+                            ?>
+                        </select>
+                    </label>
+                    <p class="description"><?php _e('Choisissez comment formater la valeur dérivée. Extensible via le hook add-gutenberg-metabox-filter.', 'up-gutenberg-metabox'); ?></p>
+                </div>
+            </td>
+        </tr>
     </table>
     
     <div class="ugm-select-options" <?php echo ($field['type'] !== 'select') ? 'style="display: none;"' : ''; ?>>
