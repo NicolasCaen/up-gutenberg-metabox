@@ -3,7 +3,7 @@
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
  * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
@@ -23,12 +23,17 @@ if (!defined('ABSPATH')) {
 // Définir les constantes du plugin
 define('UGM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UGM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('UGM_PLUGIN_VERSION', '1.1.0');
+define('UGM_PLUGIN_VERSION', '1.1.1');
 
 /**
  * Classe principale du plugin Up Gutenberg Metabox
  */
 class UpGutenbergMetabox {
+    /**
+     * Registre des filtres de données dérivées.
+     * @var array<string,array{label:string,callback:callable}>
+     */
+    private static $derived_filters = array();
     
     /**
      * Instance unique de la classe
@@ -73,6 +78,9 @@ class UpGutenbergMetabox {
 
         // Enregistrer les metas pour le binding Gutenberg (REST)
         add_action('init', array($this, 'register_binding_meta'));
+
+        // Initialiser les filtres dérivés et exposer un hook pour en ajouter
+        add_action('init', array($this, 'init_derived_filters'), 5);
         
         // Hook d'activation
         register_activation_hook(__FILE__, array($this, 'activate'));
@@ -86,6 +94,66 @@ class UpGutenbergMetabox {
      */
     public function load_textdomain() {
         load_plugin_textdomain('up-gutenberg-metabox', false, dirname(plugin_basename(__FILE__)) . '/languages');
+    }
+
+    /**
+     * Initialiser les filtres de données dérivées et permettre l'extensibilité.
+     */
+    public function init_derived_filters() {
+        // Filtres par défaut
+        self::register_derived_filter('identity', __('(Aucun) valeur inchangée', 'up-gutenberg-metabox'), function($v){ return $v; });
+        self::register_derived_filter('number_thousands', __('Nombre avec séparateur de milliers', 'up-gutenberg-metabox'), function($v){
+            if ($v === '' || $v === null) return '';
+            return number_format((float)$v, 0, ',', ' ');
+        });
+        self::register_derived_filter('currency_eur', __('Montant en € (milliers + suffixe)', 'up-gutenberg-metabox'), function($v){
+            if ($v === '' || $v === null) return '';
+            return number_format((float)$v, 0, ',', ' ') . ' €';
+        });
+        self::register_derived_filter('uppercase', __('Texte en MAJUSCULES', 'up-gutenberg-metabox'), function($v){ return mb_strtoupper((string)$v); });
+        self::register_derived_filter('lowercase', __('Texte en minuscules', 'up-gutenberg-metabox'), function($v){ return mb_strtolower((string)$v); });
+        self::register_derived_filter('date_dmy', __('Date Y-m-d vers d/m/Y', 'up-gutenberg-metabox'), function($v){
+            $ts = strtotime((string)$v);
+            return $ts ? date_i18n('d/m/Y', $ts) : (string)$v;
+        });
+
+        // Hook public: les extensions peuvent enregistrer leurs filtres ici
+        // Exemple: add_action('add-gutenberg-metabox-filter', function(){ UpGutenbergMetabox::register_derived_filter('slug','Label', function($v){...}); });
+        do_action('add-gutenberg-metabox-filter');
+    }
+
+    /**
+     * Enregistrer un filtre de donnée dérivée.
+     */
+    public static function register_derived_filter($slug, $label, $callback) {
+        if (!is_string($slug) || $slug === '' || !is_callable($callback)) {
+            return;
+        }
+        self::$derived_filters[$slug] = array(
+            'label' => (string)$label,
+            'callback' => $callback,
+        );
+    }
+
+    /**
+     * Obtenir la liste des filtres disponibles (slug => label).
+     */
+    public static function get_derived_filters_labels() {
+        $labels = array();
+        foreach (self::$derived_filters as $k => $def) {
+            $labels[$k] = isset($def['label']) ? $def['label'] : $k;
+        }
+        return $labels;
+    }
+
+    /**
+     * Appliquer un filtre à une valeur.
+     */
+    private function apply_derived_filter($slug, $value) {
+        if (isset(self::$derived_filters[$slug]['callback']) && is_callable(self::$derived_filters[$slug]['callback'])) {
+            return call_user_func(self::$derived_filters[$slug]['callback'], $value);
+        }
+        return $value;
     }
     
     /**
@@ -295,6 +363,21 @@ class UpGutenbergMetabox {
                 foreach ((array) $metabox['post_types'] as $post_type) {
                     register_post_meta($post_type, $field['name'], $args);
                 }
+
+                // Enregistrer la meta dérivée en REST si activée
+                if (!empty($field['derived_enabled'])) {
+                    $derived_key = $field['name'] . '_formatted';
+                    foreach ((array)$metabox['post_types'] as $post_type) {
+                        register_post_meta($post_type, $derived_key, array(
+                            'single' => true,
+                            'type' => 'string',
+                            'show_in_rest' => array(
+                                'schema' => array('type' => 'string')
+                            ),
+                            'auth_callback' => function(){ return current_user_can('edit_posts'); }
+                        ));
+                    }
+                }
             }
         }
     }
@@ -337,10 +420,33 @@ class UpGutenbergMetabox {
                             $value = sanitize_text_field($raw_value);
                         }
                         update_post_meta($post_id, $field['name'], $value);
+
+                        // Gestion de la donnée dérivée
+                        if (!empty($field['derived_enabled'])) {
+                            $derived_key = $field['name'] . '_formatted';
+                            $filter_slug = isset($field['derived_filter']) ? $field['derived_filter'] : 'identity';
+                            $derived_value = $this->apply_derived_filter($filter_slug, $value);
+                            if ($derived_value === '' || $derived_value === null) {
+                                delete_post_meta($post_id, $derived_key);
+                            } else {
+                                update_post_meta($post_id, $derived_key, $derived_value);
+                            }
+                        }
                     } else {
                         // Pour les checkboxes non cochées
                         if ($field['type'] === 'checkbox') {
                             update_post_meta($post_id, $field['name'], '0');
+                        }
+                        // Même si non envoyé, si dérivé activé et case décochée pour une checkbox, recalculer depuis nouvelle valeur
+                        if (!empty($field['derived_enabled']) && $field['type'] === 'checkbox') {
+                            $derived_key = $field['name'] . '_formatted';
+                            $filter_slug = isset($field['derived_filter']) ? $field['derived_filter'] : 'identity';
+                            $derived_value = $this->apply_derived_filter($filter_slug, '0');
+                            if ($derived_value === '' || $derived_value === null) {
+                                delete_post_meta($post_id, $derived_key);
+                            } else {
+                                update_post_meta($post_id, $derived_key, $derived_value);
+                            }
                         }
                     }
                 }

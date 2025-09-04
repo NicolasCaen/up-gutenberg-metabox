@@ -31,6 +31,41 @@ if (!defined('ABSPATH')) {
     </ol>
     <p><?php _e("Le plugin enregistre automatiquement la méta avec 'show_in_rest' pour l’exposer à l’éditeur et à l’API REST.", 'up-gutenberg-metabox'); ?></p>
 
+    <h2><?php _e('Donnée dérivée (formatée) – nouveau', 'up-gutenberg-metabox'); ?></h2>
+    <p><?php _e("Vous pouvez activer une donnée dérivée pour un champ. Le plugin calculera et enregistrera une seconde méta suffixée par '_formatted' lorsque la valeur brute change.", 'up-gutenberg-metabox'); ?></p>
+    <ol>
+        <li><?php _e("Dans la configuration du champ, cochez 'Donnée dérivée'.", 'up-gutenberg-metabox'); ?></li>
+        <li><?php _e("Choisissez un filtre de formatage (ex: nombre avec séparateur, devise, majuscules, date, etc.).", 'up-gutenberg-metabox'); ?></li>
+        <li><?php _e("Enregistrez. À chaque sauvegarde de l’article, la méta dérivée sera mise à jour.", 'up-gutenberg-metabox'); ?></li>
+    </ol>
+    <p><strong><?php _e('Clé de la méta dérivée', 'up-gutenberg-metabox'); ?></strong> — <?php _e("si votre champ s’appelle 'prix', la méta dérivée sera 'prix_formatted'.", 'up-gutenberg-metabox'); ?></p>
+    <p><strong><?php _e('REST & Block Binding', 'up-gutenberg-metabox'); ?></strong> — <?php _e("si le binding est activé pour le champ brut, la méta dérivée est également enregistrée en REST. Vous pouvez lier vos blocs sur la clé dérivée si vous souhaitez afficher la valeur formatée.", 'up-gutenberg-metabox'); ?></p>
+    <pre><code class="language-json">&lt;!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"core/post-meta","args":{"key":"prix_formatted"}}}}} --&gt;
+<p></p>
+&lt;!-- /wp:paragraph --&gt;
+    </code></pre>
+    <p><em><?php _e("Astuce: conservez la méta brute pour les calculs/tri, et utilisez la méta dérivée pour l’affichage.", 'up-gutenberg-metabox'); ?></em></p>
+
+    <details class="ugm-adv"><summary><strong><?php _e('Avancé : ajouter vos propres filtres dérivés', 'up-gutenberg-metabox'); ?></strong></summary>
+    <p><?php _e("Le plugin expose un hook pour enregistrer des filtres additionnels de formatage.", 'up-gutenberg-metabox'); ?></p>
+    <pre><code class="language-php">/**
+* Enregistrer un filtre de formatage personnalisé
+*/
+add_action('add-gutenberg-metabox-filter', function() {
+    if (!class_exists('UpGutenbergMetabox')) return;
+    UpGutenbergMetabox::register_derived_filter(
+        'my_custom_filter',
+        __('Mon filtre perso', 'up-gutenberg-metabox'),
+        function($value) {
+            // Retournez la valeur formatée (string)
+            return is_scalar($value) ? strtoupper((string)$value) : '';
+        }
+    );
+});
+    </code></pre>
+    <p><?php _e("Le filtre apparaîtra automatiquement dans la liste au niveau de la configuration du champ.", 'up-gutenberg-metabox'); ?></p>
+    </details>
+
     <h3><?php _e('Que fait le plugin ?', 'up-gutenberg-metabox'); ?></h3>
     <p><?php _e("Pour chaque champ avec Binding activé, le plugin appelle register_post_meta() avec un schéma REST adapté, sur tous les post types sélectionnés.", 'up-gutenberg-metabox'); ?></p>
     <pre><code>register_post_meta( $post_type, $meta_key, array(

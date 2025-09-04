@@ -38,6 +38,21 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_metabox_config') {
                                 $binding_type = sanitize_text_field($field['binding_type']);
                                 $clean_field['binding_type'] = in_array($binding_type, $allowed_binding_types, true) ? $binding_type : null;
                             }
+
+                            // Dérivé: activation + filtre
+                            $clean_field['derived_enabled'] = !empty($field['derived_enabled']) ? 1 : 0;
+                            if (!empty($field['derived_filter'])) {
+                                $filter_slug = sanitize_text_field($field['derived_filter']);
+                                // Valider par rapport aux filtres disponibles
+                                if (class_exists('UpGutenbergMetabox')) {
+                                    $avail = UpGutenbergMetabox::get_derived_filters_labels();
+                                    if (isset($avail[$filter_slug])) {
+                                        $clean_field['derived_filter'] = $filter_slug;
+                                    }
+                                } else {
+                                    $clean_field['derived_filter'] = $filter_slug;
+                                }
+                            }
                             
                             if ($field['type'] === 'select' && !empty($field['options'])) {
                                 $clean_field['options'] = array();
@@ -100,10 +115,17 @@ $post_types = get_post_types(array('public' => true), 'objects');
 <script type="text/template" id="ugm-metabox-template">
     <div class="ugm-metabox-config" data-index="{{INDEX}}">
         <div class="ugm-metabox-header">
-            <h3><?php _e('Metabox', 'up-gutenberg-metabox'); ?> #{{INDEX_DISPLAY}}</h3>
-            <button type="button" class="button button-link-delete remove-metabox"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+            <h3>
+                <?php _e('Metabox', 'up-gutenberg-metabox'); ?>:
+                <span class="ugm-metabox-title"><?php _e('Nouvelle metabox', 'up-gutenberg-metabox'); ?></span>
+            </h3>
+            <div class="ugm-metabox-actions">
+                <button type="button" class="button-link ugm-toggle-metabox" aria-expanded="false"><?php _e('Afficher les détails', 'up-gutenberg-metabox'); ?></button>
+                <button type="button" class="button button-link-delete remove-metabox"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+            </div>
         </div>
         
+        <div class="ugm-metabox-details" style="display:none;">
         <table class="form-table">
             <tr>
                 <th scope="row">
@@ -125,6 +147,8 @@ $post_types = get_post_types(array('public' => true), 'objects');
                 </td>
             </tr>
         </table>
+    </div>
+        </div>
         
         <div class="ugm-fields-section">
             <h4><?php _e('Champs Personnalisés', 'up-gutenberg-metabox'); ?></h4>
@@ -142,10 +166,17 @@ $post_types = get_post_types(array('public' => true), 'objects');
 <script type="text/template" id="ugm-field-template">
     <div class="ugm-field-config" data-field-index="{{FIELD_INDEX}}">
         <div class="ugm-field-header">
-            <h5><?php _e('Champ', 'up-gutenberg-metabox'); ?> #{{FIELD_INDEX_DISPLAY}}</h5>
-            <button type="button" class="button button-link-delete remove-field"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+            <h5>
+                <?php _e('Champ', 'up-gutenberg-metabox'); ?>:
+                <span class="ugm-field-title"><?php _e('Nouveau champ', 'up-gutenberg-metabox'); ?></span>
+            </h5>
+            <div class="ugm-field-actions">
+                <button type="button" class="button-link ugm-toggle-field" aria-expanded="false"><?php _e('Afficher les options', 'up-gutenberg-metabox'); ?></button>
+                <button type="button" class="button button-link-delete remove-field"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+            </div>
         </div>
         
+        <div class="ugm-field-body" style="display:none;">
         <table class="form-table">
             <tr>
                 <th scope="row">
@@ -213,6 +244,29 @@ $post_types = get_post_types(array('public' => true), 'objects');
                     </div>
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><?php _e('Donnée dérivée', 'up-gutenberg-metabox'); ?></th>
+                <td>
+                    <label>
+                        <input type="checkbox" class="ugm-derived-checkbox" name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][derived_enabled]" value="1">
+                        <?php _e('Générer et sauvegarder une valeur dérivée (clé : _formatted)', 'up-gutenberg-metabox'); ?>
+                    </label>
+                    <div class="ugm-derived-options" style="display:none; margin-top:8px;">
+                        <label>
+                            <?php _e('Filtre de formatage', 'up-gutenberg-metabox'); ?>
+                            <select name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][derived_filter]">
+                                <?php
+                                $filters = class_exists('UpGutenbergMetabox') ? UpGutenbergMetabox::get_derived_filters_labels() : array();
+                                foreach ($filters as $slug => $label) {
+                                    printf('<option value="%s">%s</option>', esc_attr($slug), esc_html($label));
+                                }
+                                ?>
+                            </select>
+                        </label>
+                        <p class="description"><?php _e('Choisissez comment formater la valeur dérivée. Extensible via le hook add-gutenberg-metabox-filter.', 'up-gutenberg-metabox'); ?></p>
+                    </div>
+                </td>
+            </tr>
         </table>
         
         <div class="ugm-select-options" style="display: none;">
@@ -221,6 +275,7 @@ $post_types = get_post_types(array('public' => true), 'objects');
                 <!-- Les options seront ajoutées ici -->
             </div>
             <button type="button" class="button button-small add-option"><?php _e('Ajouter une Option', 'up-gutenberg-metabox'); ?></button>
+        </div>
         </div>
     </div>
 </script>
@@ -241,10 +296,17 @@ $post_types = get_post_types(array('public' => true), 'objects');
 function render_metabox_config($metabox, $index, $post_types) {
     ?>
     <div class="ugm-metabox-header">
-        <h3><?php _e('Metabox', 'up-gutenberg-metabox'); ?> #<?php echo ($index + 1); ?></h3>
-        <button type="button" class="button button-link-delete remove-metabox"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+        <h3>
+            <?php _e('Metabox', 'up-gutenberg-metabox'); ?>:
+            <span class="ugm-metabox-title"><?php echo esc_html(!empty($metabox['title']) ? $metabox['title'] : __('Metabox sans titre', 'up-gutenberg-metabox')); ?></span>
+        </h3>
+        <div class="ugm-metabox-actions">
+            <button type="button" class="button-link ugm-toggle-metabox" aria-expanded="false"><?php _e('Afficher les détails', 'up-gutenberg-metabox'); ?></button>
+            <button type="button" class="button button-link-delete remove-metabox"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+        </div>
     </div>
     
+    <div class="ugm-metabox-details" style="display:none;">
     <table class="form-table">
         <tr>
             <th scope="row">
@@ -254,6 +316,7 @@ function render_metabox_config($metabox, $index, $post_types) {
                 <input type="text" id="metabox_title_<?php echo $index; ?>" name="metaboxes[<?php echo $index; ?>][title]" value="<?php echo esc_attr($metabox['title']); ?>" class="regular-text" required>
             </td>
         </tr>
+        
         <tr>
             <th scope="row"><?php _e('Post Types', 'up-gutenberg-metabox'); ?></th>
             <td>
@@ -282,6 +345,7 @@ function render_metabox_config($metabox, $index, $post_types) {
             <?php _e('Ajouter un Champ', 'up-gutenberg-metabox'); ?>
         </button>
     </div>
+    </div>
     <?php
 }
 
@@ -291,10 +355,17 @@ function render_metabox_config($metabox, $index, $post_types) {
 function render_field_config($field, $metabox_index, $field_index) {
     ?>
     <div class="ugm-field-header">
-        <h5><?php _e('Champ', 'up-gutenberg-metabox'); ?> #<?php echo ($field_index + 1); ?></h5>
-        <button type="button" class="button button-link-delete remove-field"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+        <h5>
+            <?php _e('Champ', 'up-gutenberg-metabox'); ?>:
+            <span class="ugm-field-title"><?php echo esc_html(!empty($field['name']) ? $field['name'] : __('Sans nom', 'up-gutenberg-metabox')); ?></span>
+        </h5>
+        <div class="ugm-field-actions">
+            <button type="button" class="button-link ugm-toggle-field" aria-expanded="false"><?php _e('Afficher les options', 'up-gutenberg-metabox'); ?></button>
+            <button type="button" class="button button-link-delete remove-field"><?php _e('Supprimer', 'up-gutenberg-metabox'); ?></button>
+        </div>
     </div>
     
+    <div class="ugm-field-body" style="display:none;">
     <table class="form-table">
         <tr>
             <th scope="row">
@@ -362,6 +433,30 @@ function render_field_config($field, $metabox_index, $field_index) {
                 </div>
             </td>
         </tr>
+        <tr>
+            <th scope="row"><?php _e('Donnée dérivée', 'up-gutenberg-metabox'); ?></th>
+            <td>
+                <label>
+                    <input type="checkbox" class="ugm-derived-checkbox" name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][derived_enabled]" value="1" <?php checked(!empty($field['derived_enabled'])); ?>>
+                    <?php _e('Générer et sauvegarder une valeur dérivée (clé : _formatted)', 'up-gutenberg-metabox'); ?>
+                </label>
+                <div class="ugm-derived-options" style="<?php echo empty($field['derived_enabled']) ? 'display:none;' : ''; ?> margin-top:8px;">
+                    <label>
+                        <?php _e('Filtre de formatage', 'up-gutenberg-metabox'); ?>
+                        <select name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][derived_filter]">
+                            <?php
+                            $filters = class_exists('UpGutenbergMetabox') ? UpGutenbergMetabox::get_derived_filters_labels() : array();
+                            $current = isset($field['derived_filter']) ? $field['derived_filter'] : '';
+                            foreach ($filters as $slug => $label) {
+                                printf('<option value="%s" %s>%s</option>', esc_attr($slug), selected($current === $slug, true, false), esc_html($label));
+                            }
+                            ?>
+                        </select>
+                    </label>
+                    <p class="description"><?php _e('Choisissez comment formater la valeur dérivée. Extensible via le hook add-gutenberg-metabox-filter.', 'up-gutenberg-metabox'); ?></p>
+                </div>
+            </td>
+        </tr>
     </table>
     
     <div class="ugm-select-options" <?php echo ($field['type'] !== 'select') ? 'style="display: none;"' : ''; ?>>
@@ -378,6 +473,7 @@ function render_field_config($field, $metabox_index, $field_index) {
             <?php endif; ?>
         </div>
         <button type="button" class="button button-small add-option"><?php _e('Ajouter une Option', 'up-gutenberg-metabox'); ?></button>
+    </div>
     </div>
     <?php
 }
