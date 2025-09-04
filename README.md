@@ -133,6 +133,12 @@ array(
 
 ## Changelog
 
+### Version 1.1.0
+- Documentation: page de documentation intégrée et simplifiée (`includes/docs-page.php`) avec Quick Start pour le Block Binding.
+- Binding Gutenberg: enregistrement automatique des metas en REST selon le type de champ pour `metadata.bindings`.
+- UI: petites améliorations de l'interface d’admin et styles de code (`assets/css/admin.css`).
+- Qualité: nettoyage HTML (suppression d’un `</details>` orphelin) et exemples lisibles (snippets échappés).
+
 ### Version 1.0.0
 - Version initiale
 - Interface d'administration complète

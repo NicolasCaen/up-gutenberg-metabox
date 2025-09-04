@@ -3,7 +3,7 @@
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
  * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
@@ -11,7 +11,7 @@
  * Text Domain: up-gutenberg-metabox
  * Domain Path: /languages
  * Requires at least: 5.9
- * Tested up to: 6.3
+ * Tested up to: 6.6
  * Requires PHP: 7.4
  */
 
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 // Définir les constantes du plugin
 define('UGM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UGM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('UGM_PLUGIN_VERSION', '1.0.0');
+define('UGM_PLUGIN_VERSION', '1.1.0');
 
 /**
  * Classe principale du plugin Up Gutenberg Metabox
@@ -70,6 +70,9 @@ class UpGutenbergMetabox {
         
         // Sauvegarder les données des metaboxes
         add_action('save_post', array($this, 'save_metabox_data'));
+
+        // Enregistrer les metas pour le binding Gutenberg (REST)
+        add_action('init', array($this, 'register_binding_meta'));
         
         // Hook d'activation
         register_activation_hook(__FILE__, array($this, 'activate'));
@@ -98,6 +101,16 @@ class UpGutenbergMetabox {
             'dashicons-layout',
             30
         );
+
+        // Sous-menu Documentation
+        add_submenu_page(
+            'up-gutenberg-metabox',
+            __('Documentation', 'up-gutenberg-metabox'),
+            __('Documentation', 'up-gutenberg-metabox'),
+            'manage_options',
+            'ugm-documentation',
+            array($this, 'docs_page')
+        );
     }
     
     /**
@@ -121,6 +134,13 @@ class UpGutenbergMetabox {
      */
     public function admin_page() {
         include UGM_PLUGIN_PATH . 'includes/admin-page.php';
+    }
+
+    /**
+     * Page Documentation
+     */
+    public function docs_page() {
+        include UGM_PLUGIN_PATH . 'includes/docs-page.php';
     }
     
     /**
@@ -215,6 +235,68 @@ class UpGutenbergMetabox {
         
         echo '</td>';
         echo '</tr>';
+    }
+
+    /**
+     * Enregistrer les metas en REST pour le Block Binding
+     */
+    public function register_binding_meta() {
+        $metaboxes = get_option('ugm_metaboxes', array());
+        if (empty($metaboxes) || !is_array($metaboxes)) {
+            return;
+        }
+
+        foreach ($metaboxes as $metabox) {
+            if (empty($metabox['fields']) || empty($metabox['post_types'])) {
+                continue;
+            }
+
+            foreach ($metabox['fields'] as $field) {
+                if (empty($field['name']) || empty($field['binding_enabled'])) {
+                    continue;
+                }
+
+                // Déterminer le type de schéma REST
+                $schema_type = 'string';
+                if (!empty($field['binding_type'])) {
+                    $schema_type = $field['binding_type'];
+                } else if (!empty($field['type'])) {
+                    switch ($field['type']) {
+                        case 'checkbox':
+                            $schema_type = 'boolean';
+                            break;
+                        case 'number':
+                            $schema_type = 'number';
+                            break;
+                        default:
+                            $schema_type = 'string';
+                    }
+                }
+
+                // Déterminer le type de meta DB (aligner avec schema si possible)
+                $meta_type = in_array($schema_type, array('boolean','number','integer'), true) ? $schema_type : 'string';
+
+                $args = array(
+                    'single' => true,
+                    'type' => $meta_type,
+                    'show_in_rest' => array(
+                        'schema' => array(
+                            'type' => $schema_type,
+                        )
+                    ),
+                    'auth_callback' => function() { return current_user_can('edit_posts'); }
+                );
+
+                // Si select, tenter d'exposer enum
+                if (!empty($field['type']) && $field['type'] === 'select' && !empty($field['options']) && is_array($field['options'])) {
+                    $args['show_in_rest']['schema']['enum'] = array_keys($field['options']);
+                }
+
+                foreach ((array) $metabox['post_types'] as $post_type) {
+                    register_post_meta($post_type, $field['name'], $args);
+                }
+            }
+        }
     }
     
     /**

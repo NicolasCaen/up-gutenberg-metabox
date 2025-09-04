@@ -269,3 +269,25 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Docs page code blocks */
+.ugm-docs pre {
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    padding: 12px;
+    overflow: auto;
+    white-space: pre;
+    margin: 12px 0;
+}
+
+.ugm-docs pre code {
+    font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    display: block;
+}
+
+.ugm-docs code[class*="language-"] {
+    white-space: pre;
+}
