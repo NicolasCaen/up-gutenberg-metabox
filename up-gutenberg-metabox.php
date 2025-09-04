@@ -3,7 +3,7 @@
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
  * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 // Définir les constantes du plugin
 define('UGM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UGM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('UGM_PLUGIN_VERSION', '1.1.1');
+define('UGM_PLUGIN_VERSION', '1.1.2');
 
 /**
  * Classe principale du plugin Up Gutenberg Metabox
@@ -64,6 +64,9 @@ class UpGutenbergMetabox {
         // Charger les traductions
         add_action('plugins_loaded', array($this, 'load_textdomain'));
         
+        // Charger les filtres personnalisés (chaque fichier se branche sur le hook 'add-gutenberg-metabox-filter')
+        $this->load_custom_filters();
+
         // Ajouter le menu d'administration
         add_action('admin_menu', array($this, 'add_admin_menu'));
         
@@ -87,6 +90,22 @@ class UpGutenbergMetabox {
         
         // Hook de désactivation
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
+    }
+
+    /**
+     * Charger automatiquement les fichiers de filtres personnalisés
+     * présents dans includes/filters/*.php
+     */
+    private function load_custom_filters() {
+        $dir = trailingslashit(UGM_PLUGIN_PATH . 'includes/filters');
+        if (!is_dir($dir)) {
+            return;
+        }
+        foreach (glob($dir . '*.php') as $file) {
+            // Chaque fichier est censé appeler add_action('add-gutenberg-metabox-filter', ...)
+            // pour enregistrer un filtre via UpGutenbergMetabox::register_derived_filter(...)
+            require_once $file;
+        }
     }
     
     /**

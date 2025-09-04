@@ -93,6 +93,57 @@ Le plugin utilise les hooks WordPress standards :
 - **Compatible** avec les thèmes FSE (Full Site Editing)
 - **Testé** jusqu'à WordPress 6.6
 
+## Filtres personnalisés
+
+### Créer un filtre personnalisé
+
+1. Créez un fichier PHP dans `wp-content/plugins/up-gutenberg-metabox/includes/filters/` (ex: `mon-filtre.php`)
+2. Utilisez le hook `add-gutenberg-metabox-filter` pour enregistrer votre filtre :
+
+```php
+<?php
+// Fichier: wp-content/plugins/up-gutenberg-metabox/includes/filters/mon-filtre.php
+add_action('add-gutenberg-metabox-filter', function() {
+    if (!class_exists('UpGutenbergMetabox')) {
+        return;
+    }
+
+    UpGutenbergMetabox::register_derived_filter(
+        'mon_filtre', // ID du filtre
+        __('Mon Filtre Personnalisé', 'up-gutenberg-metabox'), // Nom affiché
+        function($value) {
+            // Votre logique de transformation ici
+            return $value; // Valeur transformée
+        }
+    );
+});
+```
+
+### Exemple: Transformer un textarea en liste à puces
+
+```php
+// Fichier: includes/filters/text-to-list.php
+add_action('add-gutenberg-metabox-filter', function() {
+    if (!class_exists('UpGutenbergMetabox')) return;
+
+    UpGutenbergMetabox::register_derived_filter(
+        'text_to_list',
+        __('Texte vers liste à puces', 'up-gutenberg-metabox'),
+        function($value) {
+            if (empty($value)) return '';
+            $lines = array_filter(array_map('trim', explode("\n", $value)));
+            if (empty($lines)) return '';
+            
+            $items = array_map(function($line) {
+                return '<li>' . esc_html($line) . '</li>';
+            }, $lines);
+            
+            return '<ul>' . implode('', $items) . '</ul>';
+        }
+    );
+});
+```
+
 ## Support
 
 Pour toute question ou problème :
@@ -132,6 +183,11 @@ array(
 - **Ctrl/Cmd + N** : Ajouter une nouvelle metabox
 
 ## Changelog
+
+### Version 1.1.2
+- Nouveau: Système de filtres personnalisables via `includes/filters/*.php` (ex: transformer un textarea en liste `<ul><li>`).
+- Documentation: Ajout d'une section "Filtres personnalisés" dans le README.
+- Compatibilité: Mise à jour de la version testée (WordPress 6.6).
 
 ### Version 1.1.1
 - Correctifs HTML dans `includes/admin-page.php` (fermetures `div` manquantes/orphelines) pour restaurer une structure DOM valide.
