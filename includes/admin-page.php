@@ -7,7 +7,8 @@ if (!defined('ABSPATH')) {
 // Traitement des actions AJAX
 if (isset($_POST['action']) && $_POST['action'] === 'save_metabox_config') {
     if (wp_verify_nonce($_POST['ugm_nonce'], 'ugm_save_config')) {
-        $metaboxes = isset($_POST['metaboxes']) ? $_POST['metaboxes'] : array();
+        // WordPress ajoute des slashs aux données POST. On les enlève avant sanitisation.
+        $metaboxes = isset($_POST['metaboxes']) ? wp_unslash($_POST['metaboxes']) : array();
         
         // Nettoyer et valider les données
         $clean_metaboxes = array();

@@ -105,7 +105,7 @@ class UpGutenbergMetabox {
      */
     public function enqueue_admin_scripts($hook) {
         if ('toplevel_page_up-gutenberg-metabox' === $hook) {
-            wp_enqueue_script('up-gutenberg-metabox-admin', UGM_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), UGM_PLUGIN_VERSION, true);
+            wp_enqueue_script('up-gutenberg-metabox-admin', UGM_PLUGIN_URL . 'assets/js/admin.js', array('jquery', 'jquery-ui-sortable'), UGM_PLUGIN_VERSION, true);
             wp_enqueue_style('up-gutenberg-metabox-admin', UGM_PLUGIN_URL . 'assets/css/admin.css', array(), UGM_PLUGIN_VERSION);
             
             // Localiser le script pour AJAX
@@ -246,7 +246,14 @@ class UpGutenbergMetabox {
             if (!empty($metabox['fields'])) {
                 foreach ($metabox['fields'] as $field) {
                     if (isset($_POST[$field['name']])) {
-                        $value = sanitize_text_field($_POST[$field['name']]);
+                        // Enlever les slashs ajoutés automatiquement par WP avant sanitisation
+                        $raw_value = wp_unslash($_POST[$field['name']]);
+                        // Préserver les retours à la ligne pour les textarea
+                        if (isset($field['type']) && $field['type'] === 'textarea') {
+                            $value = sanitize_textarea_field($raw_value);
+                        } else {
+                            $value = sanitize_text_field($raw_value);
+                        }
                         update_post_meta($post_id, $field['name'], $value);
                     } else {
                         // Pour les checkboxes non cochées

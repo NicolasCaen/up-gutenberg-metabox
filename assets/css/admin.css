@@ -59,6 +59,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    cursor: move; /* Indique que l'en-tête sert de poignée de déplacement */
 }
 
 .ugm-field-header h5 {
@@ -151,6 +152,15 @@
 .ugm-field-config.removing {
     opacity: 0;
     transform: translateX(-20px);
+}
+
+/* Placeholder visuel lors du drag-and-drop */
+.ugm-sort-placeholder {
+    border: 2px dashed #b3b3b3;
+    background: #f5f5f5;
+    height: 60px;
+    margin-bottom: 15px;
+    border-radius: 3px;
 }
 
 /* Responsive */

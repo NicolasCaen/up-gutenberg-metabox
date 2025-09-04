@@ -27,6 +27,10 @@ jQuery(document).ready(function($) {
         $('html, body').animate({
             scrollTop: $('#ugm-metaboxes-container .ugm-metabox-config:last').offset().top - 50
         }, 500);
+
+        // Initialiser le tri sur le nouveau conteneur de champs
+        const $newContainer = $('#ugm-metaboxes-container .ugm-metabox-config:last .ugm-fields-container');
+        initSortableOnContainer($newContainer);
     });
     
     /**
@@ -258,6 +262,37 @@ jQuery(document).ready(function($) {
             fieldIndexes[metaboxIdx] = $(this).find('.ugm-field-config').length;
         });
     }
+
+    /**
+     * Initialiser jQuery UI Sortable sur un conteneur spécifique
+     */
+    function initSortableOnContainer($container) {
+        if (!$container || !$container.length) return;
+        if ($container.data('sortable-initialized')) return;
+        $container.sortable({
+            items: '> .ugm-field-config',
+            handle: '.ugm-field-header',
+            placeholder: 'ugm-sort-placeholder',
+            forcePlaceholderSize: true,
+            tolerance: 'pointer',
+            update: function() {
+                updateFieldIndexes();
+            }
+        });
+        $container.data('sortable-initialized', true);
+    }
+
+    /**
+     * Initialiser Sortable sur tous les conteneurs existants
+     */
+    function initSortable() {
+        $('.ugm-fields-container').each(function() {
+            initSortableOnContainer($(this));
+        });
+    }
+
+    // Initialiser au chargement de la page
+    initSortable();
     
     /**
      * Auto-générer le nom du champ basé sur le libellé
