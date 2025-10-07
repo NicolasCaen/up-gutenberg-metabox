@@ -3,7 +3,7 @@
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
  * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.1.2
+ * Version: 1.2.0
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 // Définir les constantes du plugin
 define('UGM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UGM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('UGM_PLUGIN_VERSION', '1.1.2');
+define('UGM_PLUGIN_VERSION', '1.2.0');
 
 /**
  * Classe principale du plugin Up Gutenberg Metabox
@@ -214,6 +214,30 @@ class UpGutenbergMetabox {
                 'nonce' => wp_create_nonce('ugm_nonce'),
             ));
         }
+
+        // En file d'attente des scripts pour les écrans d'édition des contenus (metaboxes)
+        if (in_array($hook, array('post.php', 'post-new.php'), true)) {
+            // Media frame (WP)
+            wp_enqueue_media();
+            // Script et style pour le champ galerie
+            wp_enqueue_script(
+                'up-gutenberg-metabox-gallery',
+                UGM_PLUGIN_URL . 'assets/js/metabox-gallery.js',
+                array('jquery', 'jquery-ui-sortable'),
+                UGM_PLUGIN_VERSION,
+                true
+            );
+            wp_enqueue_style(
+                'up-gutenberg-metabox-gallery',
+                UGM_PLUGIN_URL . 'assets/css/metabox-gallery.css',
+                array(),
+                UGM_PLUGIN_VERSION
+            );
+            wp_localize_script('up-gutenberg-metabox-gallery', 'ugm_gallery_i18n', array(
+                'selectImages' => __('Choisir des images', 'up-gutenberg-metabox'),
+                'remove' => __('Retirer', 'up-gutenberg-metabox'),
+            ));
+        }
     }
     
     /**
@@ -310,16 +334,37 @@ class UpGutenbergMetabox {
             case 'email':
                 echo '<input type="email" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr($value) . '" class="regular-text" />';
                 break;
-                
+            
             case 'url':
                 echo '<input type="url" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+                break;
+
+            case 'gallery':
+                // Render a media-managed gallery: hidden CSV input + sortable thumbs
+                $ids = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)$value)))));
+                echo '<div class="ugm-gallery-field" data-input="#' . esc_attr($field['name']) . '">';
+                echo '<button type="button" class="button ugm-gallery-select">' . esc_html__('Choisir des images', 'up-gutenberg-metabox') . '</button>';
+                echo '<ul class="ugm-gallery-list" data-name="' . esc_attr($field['name']) . '">';
+                if (!empty($ids)) {
+                    foreach ($ids as $att_id) {
+                        $thumb = wp_get_attachment_image($att_id, array(80,80), true);
+                        if ($thumb) {
+                            echo '<li class="ugm-gallery-item" data-id="' . esc_attr($att_id) . '">';
+                            echo '<span class="ugm-thumb">' . $thumb . '</span>';
+                            echo '<button type="button" class="button-link ugm-remove" aria-label="' . esc_attr__('Retirer', 'up-gutenberg-metabox') . '">&times;</button>';
+                            echo '</li>';
+                        }
+                    }
+                }
+                echo '</ul>';
+                echo '<input type="hidden" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr(implode(',', $ids)) . '" />';
+                echo '</div>';
                 break;
         }
         
         if (!empty($field['description'])) {
             echo '<p class="description">' . esc_html($field['description']) . '</p>';
         }
-        
         echo '</td>';
         echo '</tr>';
     }
@@ -435,6 +480,10 @@ class UpGutenbergMetabox {
                         // Préserver les retours à la ligne pour les textarea
                         if (isset($field['type']) && $field['type'] === 'textarea') {
                             $value = sanitize_textarea_field($raw_value);
+                        } elseif (isset($field['type']) && $field['type'] === 'gallery') {
+                            // Normaliser en liste d'IDs entiers
+                            $ids = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)$raw_value)))));
+                            $value = implode(',', $ids);
                         } else {
                             $value = sanitize_text_field($raw_value);
                         }

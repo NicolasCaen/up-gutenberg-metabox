@@ -208,6 +208,7 @@ $post_types = get_post_types(array('public' => true), 'objects');
                         <option value="number"><?php _e('Nombre', 'up-gutenberg-metabox'); ?></option>
                         <option value="email"><?php _e('Email', 'up-gutenberg-metabox'); ?></option>
                         <option value="url"><?php _e('URL', 'up-gutenberg-metabox'); ?></option>
+                        <option value="gallery"><?php _e('Galerie (IDs CSV)', 'up-gutenberg-metabox'); ?></option>
                     </select>
                 </td>
             </tr>
@@ -397,6 +398,7 @@ function render_field_config($field, $metabox_index, $field_index) {
                     <option value="number" <?php selected($field['type'], 'number'); ?>><?php _e('Nombre', 'up-gutenberg-metabox'); ?></option>
                     <option value="email" <?php selected($field['type'], 'email'); ?>><?php _e('Email', 'up-gutenberg-metabox'); ?></option>
                     <option value="url" <?php selected($field['type'], 'url'); ?>><?php _e('URL', 'up-gutenberg-metabox'); ?></option>
+                    <option value="gallery" <?php selected($field['type'], 'gallery'); ?>><?php _e('Galerie (IDs CSV)', 'up-gutenberg-metabox'); ?></option>
                 </select>
             </td>
         </tr>

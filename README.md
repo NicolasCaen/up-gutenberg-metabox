@@ -7,7 +7,7 @@ Un plugin WordPress pour ajouter facilement des metaboxes personnalisées aux si
 - ✅ Interface d'administration simple et intuitive
 - ✅ Support de multiples metaboxes
 - ✅ Configuration par post type
-- ✅ Types de champs variés (texte, textarea, select, checkbox, nombre, email, URL)
+- ✅ Types de champs variés (texte, textarea, select, checkbox, nombre, email, URL, galerie)
 - ✅ Validation des données côté client et serveur
 - ✅ Compatible avec les sites FSE WordPress
 - ✅ Interface responsive
@@ -39,6 +39,7 @@ Un plugin WordPress pour ajouter facilement des metaboxes personnalisées aux si
 - **Nombre** : Champ numérique
 - **Email** : Champ avec validation email
 - **URL** : Champ avec validation URL
+- **Galerie** : Sélection multiple d'images avec aperçu, réordonnable, valeur enregistrée en CSV d'IDs
 
 ### Récupération des Données
 
@@ -59,15 +60,18 @@ $is_checked = get_post_meta(get_the_ID(), 'nom_checkbox', true) === '1';
 
 ```
 up-gutenberg-metabox/
-├── up-gutenberg-metabox.php    # Fichier principal
+├── up-gutenberg-metabox.php      # Fichier principal
 ├── includes/
-│   └── admin-page.php          # Interface d'administration
+│   ├── admin-page.php            # Interface d'administration
+│   └── filters/                  # Filtres de données dérivées (optionnels)
 ├── assets/
 │   ├── css/
-│   │   └── admin.css          # Styles d'administration
+│   │   ├── admin.css            # Styles d'administration (config)
+│   │   └── metabox-gallery.css  # Styles du champ galerie (éditeur)
 │   └── js/
-│       └── admin.js           # Scripts d'administration
-└── README.md                  # Documentation
+│       ├── admin.js             # Scripts d'administration (config)
+│       └── metabox-gallery.js   # Scripts du champ galerie (éditeur)
+└── README.md                    # Documentation
 ```
 
 ## Hooks et Filtres
@@ -183,6 +187,12 @@ array(
 - **Ctrl/Cmd + N** : Ajouter une nouvelle metabox
 
 ## Changelog
+
+### Version 1.2.0
+- Nouveau: Type de champ « Galerie » avec sélection depuis la médiathèque, aperçu des miniatures, réordonnable (drag & drop), suppression d’images.
+- Données: Enregistrement sécurisé sous forme de CSV d’IDs (sanitisation `absint`).
+- Assets: Ajout `assets/js/metabox-gallery.js` et `assets/css/metabox-gallery.css`, chargés automatiquement sur les écrans d’édition (`post.php`, `post-new.php`).
+- Docs: README et interface mis à jour pour inclure le type « Galerie ».
 
 ### Version 1.1.2
 - Nouveau: Système de filtres personnalisables via `includes/filters/*.php` (ex: transformer un textarea en liste `<ul><li>`).
