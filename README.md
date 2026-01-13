@@ -188,6 +188,9 @@ array(
 
 ## Changelog
 
+### Version 1.3.2
+- Correctif: Quand le plugin est actif, les assets "Block Binding copy" générés dans le thème ne sont plus chargés (évite les doublons)
+
 ### Version 1.3.1
 - Correctif: Normalisation des noms de variables PHP générées (remplacement des tirets par des underscores)
 - Nouveau: Mutualisation des filtres via une classe de base `UGM_Metabox` générée dans le thème (`functions/metabox/class-ugm-metabox.php`)

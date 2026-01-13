@@ -302,6 +302,36 @@ jQuery(document).ready(function($) {
     // Initialiser au chargement de la page
     initSortable();
 
+    /**
+     * Copier un texte dans le presse-papier (avec fallback)
+     */
+    function copyToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function(resolve, reject) {
+            try {
+                const $tmp = $('<textarea readonly></textarea>').val(text).appendTo('body');
+                $tmp[0].select();
+                const ok = document.execCommand('copy');
+                $tmp.remove();
+                if (ok) resolve();
+                else reject(new Error('copy_failed'));
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    /**
+     * Construire le snippet Gutenberg Block Binding pour une meta key
+     */
+    function buildBindingSnippet(metaKey) {
+        return "<!-- wp:paragraph {\"metadata\":{\"bindings\":{\"content\":{\"source\":\"core/post-meta\",\"args\":{\"key\":\"" + metaKey + "\"}}}}} -->\n" +
+            "\n" +
+            "<!-- /wp:paragraph -->";
+    }
+
     // Initialiser les titres présents (metaboxes et champs) à partir des valeurs existantes
     $('.ugm-metabox-config').each(function() {
         const titleVal = $(this).find('input[name*="[title]"]').val();
@@ -412,6 +442,44 @@ jQuery(document).ready(function($) {
         const $wrap = $(this).closest('.ugm-field-config');
         const val = $(this).val().trim();
         $wrap.find('.ugm-field-title').text(val || 'Sans nom');
+
+        // Synchroniser la meta key avec le bouton de copie
+        $wrap.find('.ugm-copy-binding').attr('data-meta-key', val);
+    });
+
+    /**
+     * Copier le snippet Block Binding
+     */
+    $(document).on('click', '.ugm-copy-binding', function() {
+        const $btn = $(this);
+        let metaKey = ($btn.attr('data-meta-key') || '').trim();
+
+        if (!metaKey) {
+            const $row = $btn.closest('.ugm-field-name-row');
+            const $input = $row.find('input[name*="[name]"]');
+            if ($input.length) {
+                metaKey = ($input.val() || '').trim();
+            }
+        }
+
+        if (!metaKey) {
+            alert('Aucune meta key à copier.');
+            return;
+        }
+
+        const snippet = buildBindingSnippet(metaKey);
+        const originalText = $btn.text();
+
+        copyToClipboard(snippet)
+            .then(function() {
+                $btn.text('Copié');
+                setTimeout(function() {
+                    $btn.text(originalText);
+                }, 800);
+            })
+            .catch(function() {
+                alert('Impossible de copier dans le presse-papier.');
+            });
     });
     
     /**

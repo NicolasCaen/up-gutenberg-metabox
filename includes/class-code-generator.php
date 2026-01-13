@@ -79,6 +79,10 @@ class UGM_Code_Generator {
         }
         
         $this->ensure_directories();
+
+        // Générer les assets pour la copie Block Binding (fonctionnel même si le plugin est désactivé)
+        file_put_contents($this->theme_metabox_path . 'assets/js/metabox-binding-copy.js', $this->get_binding_copy_js_code());
+        file_put_contents($this->theme_metabox_path . 'assets/css/metabox-binding-copy.css', $this->get_binding_copy_css_code());
         
         // 1. Générer la classe de base UGM_Metabox
         $base_class_code = $this->get_base_class_code();
@@ -110,6 +114,22 @@ class UGM_Code_Generator {
                 $code .= "include_once __DIR__ . '/inc/{$filename}';\n";
             }
         }
+
+        $code .= "\n";
+        $code .= "add_action('admin_enqueue_scripts', function(\$hook) {\n";
+        $code .= "    if (!in_array(\$hook, array('post.php','post-new.php'), true)) {\n";
+        $code .= "        return;\n";
+        $code .= "    }\n";
+        $code .= "    if (defined('UGM_PLUGIN_VERSION')) {\n";
+        $code .= "        return;\n";
+        $code .= "    }\n";
+        $code .= "    if (wp_script_is('up-gutenberg-metabox-binding-copy', 'enqueued') || wp_script_is('up-gutenberg-metabox-binding-copy', 'registered')) {\n";
+        $code .= "        return;\n";
+        $code .= "    }\n";
+        $code .= "    \$base = get_stylesheet_directory_uri() . '/functions/metabox/assets/';\n";
+        $code .= "    wp_enqueue_script('ugm-metabox-binding-copy', \$base . 'js/metabox-binding-copy.js', array('jquery'), '1.0.0', true);\n";
+        $code .= "    wp_enqueue_style('ugm-metabox-binding-copy', \$base . 'css/metabox-binding-copy.css', array(), '1.0.0');\n";
+        $code .= "});\n";
         
         $result = file_put_contents($this->theme_metabox_path . 'root.php', $code);
         
@@ -149,10 +169,27 @@ class UGM_Code_Generator {
         $code .= "        if (\$value === '' || \$value === null) return '';\n";
         $code .= "        return number_format((float)\$value, 0, ',', ' ');\n";
         $code .= "    }\n\n";
+
+        $code .= "    protected function apply_filter_surface_m2(\$value) {\n";
+        $code .= "        if (\$value === '' || \$value === null) return '';\n";
+        $code .= "        if (is_numeric(\$value)) {\n";
+        $code .= "            return number_format((float)\$value, 0, ',', ' ') . ' M2';\n";
+        $code .= "        }\n";
+        $code .= "        return trim((string)\$value) . ' M2';\n";
+        $code .= "    }\n\n";
         
         $code .= "    protected function apply_filter_currency_eur(\$value) {\n";
         $code .= "        if (\$value === '' || \$value === null) return '';\n";
         $code .= "        return number_format((float)\$value, 0, ',', ' ') . ' €';\n";
+        $code .= "    }\n\n";
+
+        $code .= "    protected function apply_filter_currency_eur_2dec(\$value) {\n";
+        $code .= "        if (\$value === '' || \$value === null) return '';\n";
+        $code .= "        return number_format((float)\$value, 2, ',', ' ') . ' €';\n";
+        $code .= "    }\n\n";
+
+        $code .= "    protected function apply_filter_yes_no(\$value) {\n";
+        $code .= "        return ((string)\$value === '1') ? 'Oui' : 'Non';\n";
         $code .= "    }\n\n";
         
         $code .= "    protected function apply_filter_uppercase(\$value) {\n";
@@ -166,6 +203,11 @@ class UGM_Code_Generator {
         $code .= "    protected function apply_filter_date_dmy(\$value) {\n";
         $code .= "        \$ts = strtotime((string)\$value);\n";
         $code .= "        return \$ts ? date_i18n('d/m/Y', \$ts) : (string)\$value;\n";
+        $code .= "    }\n";
+
+        $code .= "\n    protected function apply_filter_datetime_dmy_hi(\$value) {\n";
+        $code .= "        \$ts = strtotime((string)\$value);\n";
+        $code .= "        return \$ts ? date_i18n('d/m/Y H:i', \$ts) : (string)\$value;\n";
         $code .= "    }\n";
         
         $code .= "}\n";
@@ -184,6 +226,128 @@ class UGM_Code_Generator {
         if (!file_exists($this->theme_metabox_path . 'inc/')) {
             wp_mkdir_p($this->theme_metabox_path . 'inc/');
         }
+
+        if (!file_exists($this->theme_metabox_path . 'assets/js/')) {
+            wp_mkdir_p($this->theme_metabox_path . 'assets/js/');
+        }
+
+        if (!file_exists($this->theme_metabox_path . 'assets/css/')) {
+            wp_mkdir_p($this->theme_metabox_path . 'assets/css/');
+        }
+    }
+
+    private function get_binding_copy_js_code() {
+        return "jQuery(document).ready(function($) {\n" .
+            "    'use strict';\n\n" .
+            "    function copyToClipboard(text) {\n" .
+            "        if (navigator.clipboard && navigator.clipboard.writeText) {\n" .
+            "            return navigator.clipboard.writeText(text);\n" .
+            "        }\n" .
+            "        return new Promise(function(resolve, reject) {\n" .
+            "            try {\n" .
+            "                const \$tmp = $('<textarea readonly></textarea>').val(text).appendTo('body');\n" .
+            "                \$tmp[0].select();\n" .
+            "                const ok = document.execCommand('copy');\n" .
+            "                \$tmp.remove();\n" .
+            "                if (ok) resolve();\n" .
+            "                else reject(new Error('copy_failed'));\n" .
+            "            } catch (e) {\n" .
+            "                reject(e);\n" .
+            "            }\n" .
+            "        });\n" .
+            "    }\n\n" .
+            "    function buildBindingSnippet(metaKey) {\n" .
+            "        return \"<!-- wp:paragraph {\\\"metadata\\\":{\\\"bindings\\\":{\\\"content\\\":{\\\"source\\\":\\\"core/post-meta\\\",\\\"args\\\":{\\\"key\\\":\\\"\" + metaKey + \"\\\"}}}}} -->\\n\\n<!-- /wp:paragraph -->\";\n" .
+            "    }\n\n" .
+            "    function isUGMMetabox(\$postbox) {\n" .
+            "        const hasPluginNonce = \$postbox.find('input[type=\\\"hidden\\\"][name^=\\\"ugm_metabox_nonce_\\\"]').length > 0;\n" .
+            "        const hasThemeNonce = \$postbox.find('input[type=\\\"hidden\\\"][name^=\\\"metabox_nonce_\\\"]').length > 0;\n" .
+            "        return hasPluginNonce || hasThemeNonce;\n" .
+            "    }\n\n" .
+            "    function injectButtonsIntoMetabox(\$postbox) {\n" .
+            "        const \$tables = \$postbox.find('table.form-table');\n" .
+            "        if (!\$tables.length) return;\n\n" .
+            "        \$tables.each(function() {\n" .
+            "            const \$table = $(this);\n" .
+            "            \$table.find('tr').each(function() {\n" .
+            "                const \$tr = $(this);\n" .
+            "                const \$label = \$tr.find('th label[for]').first();\n" .
+            "                const metaKey = (\$label.attr('for') || '').trim();\n\n" .
+            "                if (!metaKey) return;\n\n" .
+            "                const \$td = \$tr.find('td').first();\n" .
+            "                if (!\$td.length) return;\n\n" .
+            "                if (\$td.find('.ugm-binding-copy').length) return;\n\n" .
+            "                const \$btn = $(\n" .
+            "                    '<button type=\\\"button\\\" class=\\\"button button-secondary ugm-binding-copy\\\" aria-label=\\\"Copier le snippet Block Binding\\\">' +\n" .
+            "                        '<span class=\\\"dashicons dashicons-clipboard\\\"></span>' +\n" .
+            "                    '</button>'\n" .
+            "                );\n\n" .
+            "                \$btn.on('click', function() {\n" .
+            "                    const snippet = buildBindingSnippet(metaKey);\n" .
+            "                    const original = \$btn.html();\n\n" .
+            "                    copyToClipboard(snippet)\n" .
+            "                        .then(function() {\n" .
+            "                            \$btn.text('Copié');\n" .
+            "                            setTimeout(function() {\n" .
+            "                                \$btn.html(original);\n" .
+            "                            }, 800);\n" .
+            "                        })\n" .
+            "                        .catch(function() {\n" .
+            "                            alert('Impossible de copier dans le presse-papier.');\n" .
+            "                        });\n" .
+            "                });\n\n" .
+            "                let \$btnFormatted = null;\n" .
+            "                if (!metaKey.endsWith('_formatted')) {\n" .
+            "                    const formattedKey = metaKey + '_formatted';\n" .
+            "                    \$btnFormatted = $(\n" .
+            "                        '<button type=\\\"button\\\" class=\\\"button button-secondary ugm-binding-copy ugm-binding-copy-formatted\\\" aria-label=\\\"Copier le snippet Block Binding (_formatted)\\\">' +\n" .
+            "                            '<span class=\\\"dashicons dashicons-clipboard\\\"></span>' +\n" .
+            "                            '<span class=\\\"ugm-binding-copy-suffix\\\">F</span>' +\n" .
+            "                        '</button>'\n" .
+            "                    );\n\n" .
+            "                    \$btnFormatted.on('click', function() {\n" .
+            "                        const snippet = buildBindingSnippet(formattedKey);\n" .
+            "                        const original = \$btnFormatted.html();\n\n" .
+            "                        copyToClipboard(snippet)\n" .
+            "                            .then(function() {\n" .
+            "                                \$btnFormatted.text('Copié');\n" .
+            "                                setTimeout(function() {\n" .
+            "                                    \$btnFormatted.html(original);\n" .
+            "                                }, 800);\n" .
+            "                            })\n" .
+            "                            .catch(function() {\n" .
+            "                                alert('Impossible de copier dans le presse-papier.');\n" .
+            "                            });\n" .
+            "                    });\n" .
+            "                }\n\n" .
+            "                const \$firstInput = \$td.find('input, textarea, select').first();\n" .
+            "                if (\$firstInput.length) {\n" .
+            "                    \$firstInput.after(\$btn);\n" .
+            "                    if (\$btnFormatted) {\n" .
+            "                        \$btn.after(\$btnFormatted);\n" .
+            "                    }\n" .
+            "                } else {\n" .
+            "                    \$td.append(\$btn);\n" .
+            "                    if (\$btnFormatted) {\n" .
+            "                        \$td.append(\$btnFormatted);\n" .
+            "                    }\n" .
+            "                }\n" .
+            "            });\n" .
+            "        });\n" .
+            "    }\n\n" .
+            "    $('.postbox').each(function() {\n" .
+            "        const \$postbox = $(this);\n" .
+            "        if (!isUGMMetabox(\$postbox)) return;\n" .
+            "        injectButtonsIntoMetabox(\$postbox);\n" .
+            "    });\n" .
+            "});\n";
+    }
+
+    private function get_binding_copy_css_code() {
+        return ".ugm-metabox-table .ugm-binding-copy{margin-left:8px;padding:0 6px;min-width:32px;height:30px;line-height:28px;vertical-align:middle;}" .
+            ".ugm-metabox-table .ugm-binding-copy .dashicons{line-height:28px;}" .
+            ".ugm-metabox-table .ugm-binding-copy-formatted{position:relative;}" .
+            ".ugm-metabox-table .ugm-binding-copy-formatted .ugm-binding-copy-suffix{display:inline-block;margin-left:2px;font-size:11px;font-weight:700;line-height:1;vertical-align:middle;}";
     }
     
     /**
@@ -296,9 +460,17 @@ class UGM_Code_Generator {
         // Fermer la classe
         $code .= "}\n\n";
         
-        // Initialiser la classe
+        // Initialiser la classe (éviter les doublons plugin + thème)
         $code .= "// Initialiser\n";
-        $code .= "{$class_name}::get_instance();\n";
+        $code .= "\$ugm_should_load = true;\n";
+        $code .= "if (class_exists('UpGutenbergMetabox')) {\n";
+        $code .= "    \$ugm_sources = get_option('ugm_metabox_sources', array());\n";
+        $code .= "    \$ugm_source = isset(\$ugm_sources['{$metabox['id']}']) ? \$ugm_sources['{$metabox['id']}'] : 'plugin';\n";
+        $code .= "    \$ugm_should_load = (\$ugm_source === 'theme');\n";
+        $code .= "}\n";
+        $code .= "if (\$ugm_should_load) {\n";
+        $code .= "    {$class_name}::get_instance();\n";
+        $code .= "}\n";
         
         return $code;
     }

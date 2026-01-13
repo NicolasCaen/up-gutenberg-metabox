@@ -140,8 +140,10 @@ $post_types = get_post_types(array('public' => true), 'objects');
                 <td>
                     <?php foreach ($post_types as $post_type): ?>
                         <label>
-                            <input type="checkbox" name="metaboxes[{{INDEX}}][post_types][]" value="<?php echo esc_attr($post_type->name); ?>">
-                            <?php echo esc_html($post_type->label); ?>
+                            <?php $pt_name = is_object($post_type) ? $post_type->name : (string)$post_type; ?>
+                            <?php $pt_label = is_object($post_type) && !empty($post_type->label) ? $post_type->label : $pt_name; ?>
+                            <input type="checkbox" name="metaboxes[{{INDEX}}][post_types][]" value="<?php echo esc_attr($pt_name); ?>">
+                            <?php echo esc_html($pt_label); ?>
                         </label><br>
                     <?php endforeach; ?>
                 </td>
@@ -183,7 +185,12 @@ $post_types = get_post_types(array('public' => true), 'objects');
                     <label for="field_name_{{METABOX_INDEX}}_{{FIELD_INDEX}}"><?php _e('Nom du Champ', 'up-gutenberg-metabox'); ?></label>
                 </th>
                 <td>
-                    <input type="text" id="field_name_{{METABOX_INDEX}}_{{FIELD_INDEX}}" name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][name]" class="regular-text" required>
+                    <div class="ugm-field-name-row">
+                        <input type="text" id="field_name_{{METABOX_INDEX}}_{{FIELD_INDEX}}" name="metaboxes[{{METABOX_INDEX}}][fields][{{FIELD_INDEX}}][name]" class="regular-text" required>
+                        <button type="button" class="button button-secondary ugm-copy-binding" data-meta-key="" title="<?php echo esc_attr__('Copier le snippet Block Binding', 'up-gutenberg-metabox'); ?>" aria-label="<?php echo esc_attr__('Copier le snippet Block Binding', 'up-gutenberg-metabox'); ?>">
+                            <span class="dashicons dashicons-clipboard"></span>
+                        </button>
+                    </div>
                     <p class="description"><?php _e('Nom technique du champ (sans espaces, caractères spéciaux)', 'up-gutenberg-metabox'); ?></p>
                 </td>
             </tr>
@@ -373,7 +380,12 @@ function render_field_config($field, $metabox_index, $field_index) {
                 <label for="field_name_<?php echo $metabox_index; ?>_<?php echo $field_index; ?>"><?php _e('Nom du Champ', 'up-gutenberg-metabox'); ?></label>
             </th>
             <td>
-                <input type="text" id="field_name_<?php echo $metabox_index; ?>_<?php echo $field_index; ?>" name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][name]" value="<?php echo esc_attr($field['name']); ?>" class="regular-text" required>
+                <div class="ugm-field-name-row">
+                    <input type="text" id="field_name_<?php echo $metabox_index; ?>_<?php echo $field_index; ?>" name="metaboxes[<?php echo $metabox_index; ?>][fields][<?php echo $field_index; ?>][name]" value="<?php echo esc_attr($field['name']); ?>" class="regular-text" required>
+                    <button type="button" class="button button-secondary ugm-copy-binding" data-meta-key="<?php echo esc_attr($field['name']); ?>" title="<?php echo esc_attr__('Copier le snippet Block Binding', 'up-gutenberg-metabox'); ?>" aria-label="<?php echo esc_attr__('Copier le snippet Block Binding', 'up-gutenberg-metabox'); ?>">
+                        <span class="dashicons dashicons-clipboard"></span>
+                    </button>
+                </div>
                 <p class="description"><?php _e('Nom technique du champ (sans espaces, caractères spéciaux)', 'up-gutenberg-metabox'); ?></p>
             </td>
         </tr>

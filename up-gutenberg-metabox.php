@@ -3,7 +3,7 @@
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
  * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.3.1
+ * Version: 1.3.2
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 // Définir les constantes du plugin
 define('UGM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UGM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('UGM_PLUGIN_VERSION', '1.3.1');
+define('UGM_PLUGIN_VERSION', '1.3.2');
 
 // Inclure les classes
 require_once UGM_PLUGIN_PATH . 'includes/class-code-generator.php';
@@ -129,15 +129,33 @@ class UpGutenbergMetabox {
             if ($v === '' || $v === null) return '';
             return number_format((float)$v, 0, ',', ' ');
         });
+        self::register_derived_filter('surface_m2', __('Surface (m²)', 'up-gutenberg-metabox'), function($v){
+            if ($v === '' || $v === null) return '';
+            if (is_numeric($v)) {
+                return number_format((float)$v, 0, ',', ' ') . ' M2';
+            }
+            return trim((string)$v) . ' M2';
+        });
         self::register_derived_filter('currency_eur', __('Montant en € (milliers + suffixe)', 'up-gutenberg-metabox'), function($v){
             if ($v === '' || $v === null) return '';
             return number_format((float)$v, 0, ',', ' ') . ' €';
+        });
+        self::register_derived_filter('currency_eur_2dec', __('Montant en € (2 décimales)', 'up-gutenberg-metabox'), function($v){
+            if ($v === '' || $v === null) return '';
+            return number_format((float)$v, 2, ',', ' ') . ' €';
+        });
+        self::register_derived_filter('yes_no', __('Checkbox vers Oui / Non', 'up-gutenberg-metabox'), function($v){
+            return ((string)$v === '1') ? __('Oui', 'up-gutenberg-metabox') : __('Non', 'up-gutenberg-metabox');
         });
         self::register_derived_filter('uppercase', __('Texte en MAJUSCULES', 'up-gutenberg-metabox'), function($v){ return mb_strtoupper((string)$v); });
         self::register_derived_filter('lowercase', __('Texte en minuscules', 'up-gutenberg-metabox'), function($v){ return mb_strtolower((string)$v); });
         self::register_derived_filter('date_dmy', __('Date Y-m-d vers d/m/Y', 'up-gutenberg-metabox'), function($v){
             $ts = strtotime((string)$v);
             return $ts ? date_i18n('d/m/Y', $ts) : (string)$v;
+        });
+        self::register_derived_filter('datetime_dmy_hi', __('Date/heure vers d/m/Y H:i', 'up-gutenberg-metabox'), function($v){
+            $ts = strtotime((string)$v);
+            return $ts ? date_i18n('d/m/Y H:i', $ts) : (string)$v;
         });
 
         // Hook public: les extensions peuvent enregistrer leurs filtres ici
@@ -193,6 +211,16 @@ class UpGutenbergMetabox {
             30
         );
 
+        // Sous-menu Réglages
+        add_submenu_page(
+            'up-gutenberg-metabox',
+            __('Réglages', 'up-gutenberg-metabox'),
+            __('Réglages', 'up-gutenberg-metabox'),
+            'manage_options',
+            'ugm-settings',
+            array($this, 'settings_page')
+        );
+
         // Sous-menu Documentation
         add_submenu_page(
             'up-gutenberg-metabox',
@@ -233,6 +261,15 @@ class UpGutenbergMetabox {
         if (in_array($hook, array('post.php', 'post-new.php'), true)) {
             // Media frame (WP)
             wp_enqueue_media();
+
+            // Injecter le bouton "copier snippet Block Binding" directement dans les metabox
+            wp_enqueue_script(
+                'up-gutenberg-metabox-binding-copy',
+                UGM_PLUGIN_URL . 'assets/js/metabox-binding-copy.js',
+                array('jquery'),
+                UGM_PLUGIN_VERSION,
+                true
+            );
             // Script et style pour le champ galerie
             wp_enqueue_script(
                 'up-gutenberg-metabox-gallery',
@@ -247,6 +284,9 @@ class UpGutenbergMetabox {
                 array(),
                 UGM_PLUGIN_VERSION
             );
+
+            // Un peu de CSS partagé (alignements)
+            wp_enqueue_style('up-gutenberg-metabox-admin', UGM_PLUGIN_URL . 'assets/css/admin.css', array(), UGM_PLUGIN_VERSION);
             wp_localize_script('up-gutenberg-metabox-gallery', 'ugm_gallery_i18n', array(
                 'selectImages' => __('Choisir des images', 'up-gutenberg-metabox'),
                 'remove' => __('Retirer', 'up-gutenberg-metabox'),
@@ -274,6 +314,24 @@ class UpGutenbergMetabox {
     public function generate_page() {
         include UGM_PLUGIN_PATH . 'includes/generate-page.php';
     }
+
+    /**
+     * Page Réglages
+     */
+    public function settings_page() {
+        include UGM_PLUGIN_PATH . 'includes/settings-page.php';
+    }
+
+    /**
+     * Obtenir la source configurée pour une metabox (plugin/theme).
+     */
+    private function get_metabox_source($metabox_id) {
+        $sources = get_option('ugm_metabox_sources', array());
+        if (isset($sources[$metabox_id]) && in_array($sources[$metabox_id], array('plugin', 'theme'), true)) {
+            return $sources[$metabox_id];
+        }
+        return 'plugin';
+    }
     
     /**
      * Ajouter les metaboxes personnalisées
@@ -282,6 +340,9 @@ class UpGutenbergMetabox {
         $metaboxes = get_option('ugm_metaboxes', array());
         
         foreach ($metaboxes as $metabox) {
+            if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
+                continue;
+            }
             if (!empty($metabox['post_types']) && !empty($metabox['title'])) {
                 foreach ($metabox['post_types'] as $post_type) {
                     add_meta_box(
@@ -400,6 +461,9 @@ class UpGutenbergMetabox {
         }
 
         foreach ($metaboxes as $metabox) {
+            if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
+                continue;
+            }
             if (empty($metabox['fields']) || empty($metabox['post_types'])) {
                 continue;
             }
@@ -484,6 +548,9 @@ class UpGutenbergMetabox {
         $metaboxes = get_option('ugm_metaboxes', array());
         
         foreach ($metaboxes as $metabox) {
+            if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
+                continue;
+            }
             $nonce_name = 'ugm_metabox_nonce_' . $metabox['id'];
             $nonce_action = 'ugm_save_metabox_' . $metabox['id'];
             
