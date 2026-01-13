@@ -3,7 +3,7 @@
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
  * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.2.0
+ * Version: 1.3.1
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
@@ -23,7 +23,11 @@ if (!defined('ABSPATH')) {
 // Définir les constantes du plugin
 define('UGM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UGM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('UGM_PLUGIN_VERSION', '1.2.0');
+define('UGM_PLUGIN_VERSION', '1.3.1');
+
+// Inclure les classes
+require_once UGM_PLUGIN_PATH . 'includes/class-code-generator.php';
+require_once UGM_PLUGIN_PATH . 'includes/class-code-importer.php';
 
 /**
  * Classe principale du plugin Up Gutenberg Metabox
@@ -198,6 +202,16 @@ class UpGutenbergMetabox {
             'ugm-documentation',
             array($this, 'docs_page')
         );
+
+        // Sous-menu Generate
+        add_submenu_page(
+            'up-gutenberg-metabox',
+            __('Générer', 'up-gutenberg-metabox'),
+            __('Générer', 'up-gutenberg-metabox'),
+            'manage_options',
+            'ugm-generate',
+            array($this, 'generate_page')
+        );
     }
     
     /**
@@ -252,6 +266,13 @@ class UpGutenbergMetabox {
      */
     public function docs_page() {
         include UGM_PLUGIN_PATH . 'includes/docs-page.php';
+    }
+
+    /**
+     * Page Generate
+     */
+    public function generate_page() {
+        include UGM_PLUGIN_PATH . 'includes/generate-page.php';
     }
     
     /**

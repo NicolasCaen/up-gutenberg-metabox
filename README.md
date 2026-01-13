@@ -188,6 +188,21 @@ array(
 
 ## Changelog
 
+### Version 1.3.1
+- Correctif: Normalisation des noms de variables PHP générées (remplacement des tirets par des underscores)
+- Nouveau: Mutualisation des filtres via une classe de base `UGM_Metabox` générée dans le thème (`functions/metabox/class-ugm-metabox.php`)
+- Amélioration: Les fichiers générés utilisent désormais un en-tête `Author : GEHIN Nicolas`
+
+### Version 1.3.0
+- Nouveau: Système de génération de code pour exporter les metaboxes vers le thème
+- Nouveau: Page "Générer" dans l'administration pour générer le code PHP des metaboxes
+- Nouveau: Génération automatique des fichiers dans `functions/metabox/inc/` du thème
+- Nouveau: Génération du fichier `root.php` avec inclusion des metaboxes sélectionnées
+- Nouveau: Import/réimport des metaboxes depuis les fichiers du thème
+- Nouveau: Classes `UGM_Code_Generator` et `UGM_Code_Importer` pour la gestion du code
+- Amélioration: Le plugin peut maintenant servir uniquement à créer les metaboxes, puis être désactivé
+- Documentation: Instructions pour l'utilisation du système de génération de code
+
 ### Version 1.2.0
 - Nouveau: Type de champ « Galerie » avec sélection depuis la médiathèque, aperçu des miniatures, réordonnable (drag & drop), suppression d’images.
 - Données: Enregistrement sécurisé sous forme de CSV d’IDs (sanitisation `absint`).

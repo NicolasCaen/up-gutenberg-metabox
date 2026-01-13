@@ -10,6 +10,38 @@ if (!defined('ABSPATH')) {
 
     <hr/>
 
+    <h2><?php _e('Exporter le code dans le thème (page “Générer”)', 'up-gutenberg-metabox'); ?></h2>
+    <p><?php _e("Le plugin peut générer un code PHP autonome pour vos metaboxes, à copier directement dans le thème. Cela permet de désactiver le plugin tout en conservant les metaboxes fonctionnelles.", 'up-gutenberg-metabox'); ?></p>
+
+    <h3><?php _e('Structure générée dans le thème', 'up-gutenberg-metabox'); ?></h3>
+    <pre><code>functions/metabox/
+├── root.php
+├── class-ugm-metabox.php
+└── inc/
+    ├── metabox_1.php
+    └── metabox_2.php</code></pre>
+
+    <ul>
+        <li><strong><?php _e('root.php', 'up-gutenberg-metabox'); ?></strong> — <?php _e("inclut la classe de base et les fichiers de metabox sélectionnés.", 'up-gutenberg-metabox'); ?></li>
+        <li><strong><?php _e('class-ugm-metabox.php', 'up-gutenberg-metabox'); ?></strong> — <?php _e("contient la classe de base `UGM_Metabox` qui centralise les filtres (ex: identity, currency, date, etc.).", 'up-gutenberg-metabox'); ?></li>
+        <li><strong><?php _e('inc/*.php', 'up-gutenberg-metabox'); ?></strong> — <?php _e("un fichier par metabox, généré à partir de la configuration.", 'up-gutenberg-metabox'); ?></li>
+    </ul>
+
+    <h3><?php _e('Workflow recommandé', 'up-gutenberg-metabox'); ?></h3>
+    <ol>
+        <li><?php _e("Créez / modifiez vos metaboxes dans “UG Metabox”.", 'up-gutenberg-metabox'); ?></li>
+        <li><?php _e("Allez dans “UG Metabox > Générer”.", 'up-gutenberg-metabox'); ?></li>
+        <li><?php _e("Générez les fichiers `inc/*.php` (une ou plusieurs metaboxes).", 'up-gutenberg-metabox'); ?></li>
+        <li><?php _e("Générez `root.php` (cela génère aussi `class-ugm-metabox.php`).", 'up-gutenberg-metabox'); ?></li>
+        <li><?php _e("Dans le thème, assurez-vous que `functions/metabox/root.php` est inclus (ex: depuis functions.php).", 'up-gutenberg-metabox'); ?></li>
+        <li><?php _e("Vous pouvez ensuite désactiver le plugin: les metaboxes restent actives via le thème.", 'up-gutenberg-metabox'); ?></li>
+    </ol>
+
+    <h3><?php _e('Réimporter depuis le thème', 'up-gutenberg-metabox'); ?></h3>
+    <p><?php _e("Si vous réactivez le plugin, vous pouvez réimporter la configuration depuis les fichiers du thème (dossier `functions/metabox/inc/`) pour continuer à modifier vos metaboxes via l’interface.", 'up-gutenberg-metabox'); ?></p>
+
+    <hr/>
+
     <h2><?php _e("Démarrage rapide (core/post-meta)", 'up-gutenberg-metabox'); ?></h2>
     <ol>
         <li><?php _e("Créez un champ méta (ex: 'slug_meta') dans le plugin et activez 'Binding Gutenberg'.", 'up-gutenberg-metabox'); ?></li>
