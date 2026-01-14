@@ -84,6 +84,10 @@ class UGM_Code_Generator {
         file_put_contents($this->theme_metabox_path . 'assets/js/metabox-binding-copy.js', $this->get_binding_copy_js_code());
         file_put_contents($this->theme_metabox_path . 'assets/css/metabox-binding-copy.css', $this->get_binding_copy_css_code());
         
+        // Générer les assets pour les champs gallery (fonctionnel même si le plugin est désactivé)
+        file_put_contents($this->theme_metabox_path . 'assets/js/metabox-gallery.js', $this->get_gallery_js_code());
+        file_put_contents($this->theme_metabox_path . 'assets/css/metabox-gallery.css', $this->get_gallery_css_code());
+        
         // 1. Générer la classe de base UGM_Metabox
         $base_class_code = $this->get_base_class_code();
         file_put_contents($this->theme_metabox_path . 'class-ugm-metabox.php', $base_class_code);
@@ -129,6 +133,15 @@ class UGM_Code_Generator {
         $code .= "    \$base = get_stylesheet_directory_uri() . '/functions/metabox/assets/';\n";
         $code .= "    wp_enqueue_script('ugm-metabox-binding-copy', \$base . 'js/metabox-binding-copy.js', array('jquery'), '1.0.0', true);\n";
         $code .= "    wp_enqueue_style('ugm-metabox-binding-copy', \$base . 'css/metabox-binding-copy.css', array(), '1.0.0');\n";
+        $code .= "    \n";
+        $code .= "    // Gallery assets pour les champs de type gallery\n";
+        $code .= "    wp_enqueue_media();\n";
+        $code .= "    wp_enqueue_script('ugm-metabox-gallery', \$base . 'js/metabox-gallery.js', array('jquery', 'jquery-ui-sortable'), '1.0.0', true);\n";
+        $code .= "    wp_enqueue_style('ugm-metabox-gallery', \$base . 'css/metabox-gallery.css', array(), '1.0.0');\n";
+        $code .= "    wp_localize_script('ugm-metabox-gallery', 'ugm_gallery_i18n', array(\n";
+        $code .= "        'selectImages' => __('Choisir des images', 'textdomain'),\n";
+        $code .= "        'remove' => __('Retirer', 'textdomain'),\n";
+        $code .= "    ));\n";
         $code .= "});\n";
         
         $result = file_put_contents($this->theme_metabox_path . 'root.php', $code);
@@ -349,6 +362,167 @@ class UGM_Code_Generator {
             ".ugm-metabox-table .ugm-binding-copy-formatted{position:relative;}" .
             ".ugm-metabox-table .ugm-binding-copy-formatted .ugm-binding-copy-suffix{display:inline-block;margin-left:2px;font-size:11px;font-weight:700;line-height:1;vertical-align:middle;}";
     }
+
+    private function get_gallery_js_code() {
+        return "(function($){
+  'use strict';
+
+  function csvToIds(csv){
+    if(!csv) return [];
+    return String(csv)
+      .split(',')
+      .map(function(s){ return parseInt(s.trim(),10); })
+      .filter(function(n){ return !isNaN(n) && n > 0; });
+  }
+
+  function idsToCsv(ids){
+    return (ids||[]).filter(function(n){return !!n;}).join(',');
+  }
+
+  function refreshHiddenInput(\$wrap){
+    var ids = [];
+    \$wrap.find('.ugm-gallery-item').each(function(){
+      var id = parseInt($(this).attr('data-id'),10);
+      if(!isNaN(id) && id>0) ids.push(id);
+    });
+    var \$input = \$wrap.find('input[type=\"hidden\"]');
+    \$input.val(idsToCsv(ids)).trigger('change');
+  }
+
+  function addItem(\$list, id, thumbHtml){
+    var \$li = $('<li class=\"ugm-gallery-item\"/>').attr('data-id', id);
+    var \$thumb = $('<span class=\"ugm-thumb\"/>').html(thumbHtml);
+    var \$remove = $('<button type=\"button\" class=\"button-link ugm-remove\" aria-label=\"'+ (window.ugm_gallery_i18n ? ugm_gallery_i18n.remove : 'Remove') +'\">&times;</button>');
+    \$li.append(\$thumb).append(\$remove);
+    \$list.append(\$li);
+  }
+
+  function fetchThumbHtml(attachment){
+    // If media frame supplies sizes, use thumbnail/url
+    if(attachment && attachment.sizes && attachment.sizes.thumbnail){
+      var s = attachment.sizes.thumbnail;
+      return '<img src=\"'+ s.url +'\" width=\"'+ (s.width||80) +'\" height=\"'+ (s.height||80) +'\" alt=\"\" />';
+    }
+    if(attachment && attachment.icon){
+      return '<img src=\"'+ attachment.icon +'\" width=\"80\" height=\"80\" alt=\"\" />';
+    }
+    // Fallback
+    return '<span class=\"ugm-missing-thumb\" />';
+  }
+
+  function openMediaFrame(\$wrap){
+    var title = (window.ugm_gallery_i18n ? ugm_gallery_i18n.selectImages : 'Select images');
+    var frame = wp.media({
+      title: title,
+      library: { type: 'image' },
+      multiple: true,
+      button: { text: title }
+    });
+
+    frame.on('select', function(){
+      var selection = frame.state().get('selection');
+      var \$list = \$wrap.find('.ugm-gallery-list');
+      selection.each(function(model){
+        var att = model.toJSON();
+        // Avoid duplicates
+        var exists = false;
+        \$list.find('.ugm-gallery-item').each(function(){
+          if (parseInt($(this).attr('data-id'),10) === att.id) { exists = true; return false; }
+        });
+        if(!exists){
+          addItem(\$list, att.id, fetchThumbHtml(att));
+        }
+      });
+      refreshHiddenInput(\$wrap);
+    });
+
+    frame.open();
+  }
+
+  function initSortable(\$wrap){
+    var \$list = \$wrap.find('.ugm-gallery-list');
+    if(!\$list.length || \$list.data('sortable-initialized')) return;
+    \$list.sortable({
+      items: '> .ugm-gallery-item',
+      placeholder: 'ugm-gallery-sort-placeholder',
+      forcePlaceholderSize: true,
+      tolerance: 'pointer',
+      update: function(){ refreshHiddenInput(\$wrap); }
+    });
+    \$list.data('sortable-initialized', true);
+  }
+
+  $(document).on('click', '.ugm-gallery-select', function(e){
+    e.preventDefault();
+    var \$wrap = $(this).closest('.ugm-gallery-field');
+    openMediaFrame(\$wrap);
+  });
+
+  $(document).on('click', '.ugm-gallery-field .ugm-remove', function(e){
+    e.preventDefault();
+    var \$wrap = $(this).closest('.ugm-gallery-field');
+    $(this).closest('.ugm-gallery-item').remove();
+    refreshHiddenInput(\$wrap);
+  });
+
+  // Initialize existing fields on load
+  $(function(){
+    $('.ugm-gallery-field').each(function(){
+      initSortable($(this));
+    });
+  });
+
+})(jQuery);";
+    }
+
+    private function get_gallery_css_code() {
+        return "/* UGM Gallery field styles */
+.ugm-gallery-field { margin-top: 6px; }
+.ugm-gallery-field .ugm-gallery-select { margin-bottom: 8px; }
+
+.ugm-gallery-list { 
+  list-style: none; 
+  padding: 0; 
+  margin: 0; 
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 8px; 
+}
+
+.ugm-gallery-item { 
+  position: relative; 
+  width: 80px; 
+  height: 80px; 
+  border: 1px solid #ddd; 
+  border-radius: 3px; 
+  overflow: hidden; 
+  background: #fff;
+}
+
+.ugm-gallery-item .ugm-thumb img { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover; 
+  display: block; 
+}
+
+.ugm-gallery-item .ugm-remove { 
+  position: absolute; 
+  top: 0; 
+  right: 2px; 
+  color: #a00; 
+  font-size: 18px; 
+  line-height: 1; 
+}
+
+.ugm-gallery-sort-placeholder { 
+  width: 80px; 
+  height: 80px; 
+  border: 2px dashed #b3b3b3; 
+  background: #f5f5f5; 
+  border-radius: 3px; 
+}";
+    }
     
     /**
      * Générer le code PHP pour une metabox
@@ -515,6 +689,27 @@ class UGM_Code_Generator {
                 }
                 $code .= "        echo '</select>';\n";
                 break;
+                
+            case 'gallery':
+                $code .= "        \$ids_{$var_name} = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)\$value_{$var_name})))));\n";
+                $code .= "        echo '<div class=\"ugm-gallery-field\" data-input=\"#{$field['name']}\">';\n";
+                $code .= "        echo '<button type=\"button\" class=\"button ugm-gallery-select\">' . esc_html__('Choisir des images', 'textdomain') . '</button>';\n";
+                $code .= "        echo '<ul class=\"ugm-gallery-list\" data-name=\"{$field['name']}\">';\n";
+                $code .= "        if (!empty(\$ids_{$var_name})) {\n";
+                $code .= "            foreach (\$ids_{$var_name} as \$att_id) {\n";
+                $code .= "                \$thumb = wp_get_attachment_image(\$att_id, array(80,80), true);\n";
+                $code .= "                if (\$thumb) {\n";
+                $code .= "                    echo '<li class=\"ugm-gallery-item\" data-id=\"' . esc_attr(\$att_id) . '\">';\n";
+                $code .= "                    echo '<span class=\"ugm-thumb\">' . \$thumb . '</span>';\n";
+                $code .= "                    echo '<button type=\"button\" class=\"button-link ugm-remove\" aria-label=\"' . esc_attr__('Retirer', 'textdomain') . '\">&times;</button>';\n";
+                $code .= "                    echo '</li>';\n";
+                $code .= "                }\n";
+                $code .= "            }\n";
+                $code .= "        }\n";
+                $code .= "        echo '</ul>';\n";
+                $code .= "        echo '<input type=\"hidden\" id=\"{$field['name']}\" name=\"{$field['name']}\" value=\"' . esc_attr(implode(',', \$ids_{$var_name})) . '\" />';\n";
+                $code .= "        echo '</div>';\n";
+                break;
         }
         
         if (!empty($field['description'])) {
@@ -537,6 +732,13 @@ class UGM_Code_Generator {
         
         if ($field['type'] === 'checkbox') {
             $code .= "        \$value_{$var_name} = isset(\$_POST['{$field['name']}']) ? '1' : '0';\n";
+        } elseif ($field['type'] === 'gallery') {
+            $code .= "        if (isset(\$_POST['{$field['name']}'])) {\n";
+            $code .= "            \$ids = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)wp_unslash(\$_POST['{$field['name']}']))))));\n";
+            $code .= "            \$value_{$var_name} = implode(',', \$ids);\n";
+            $code .= "        } else {\n";
+            $code .= "            \$value_{$var_name} = '';\n";
+            $code .= "        }\n";
         } else {
             $code .= "        if (isset(\$_POST['{$field['name']}'])) {\n";
             

@@ -188,6 +188,10 @@ array(
 
 ## Changelog
 
+### Version 1.3.3
+- Nouveau: Support complet du champ type "gallery" dans le code généré pour le thème (assets JS/CSS inclus, rendu et sauvegarde fonctionnels).
+- Correctif: Génération des assets gallery dans le dossier `functions/metabox/assets/` du thème.
+
 ### Version 1.3.2
 - Correctif: Quand le plugin est actif, les assets "Block Binding copy" générés dans le thème ne sont plus chargés (évite les doublons)
 
