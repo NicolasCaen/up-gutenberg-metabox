@@ -3,7 +3,7 @@
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
  * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.3.2
+ * Version: 1.3.3
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
