@@ -17,7 +17,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_metabox_config') {
                 $clean_metabox = array(
                     'id' => sanitize_key($metabox['title']) . '_' . $index,
                     'title' => sanitize_text_field($metabox['title']),
-                    'post_types' => array_map('sanitize_text_field', $metabox['post_types']),
+                    'post_types' => isset($metabox['post_types']) ? array_map('sanitize_text_field', $metabox['post_types']) : array(),
+                    'taxonomies' => isset($metabox['taxonomies']) ? array_map('sanitize_text_field', $metabox['taxonomies']) : array(),
                     'fields' => array()
                 );
                 
@@ -80,6 +81,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_metabox_config') {
 // Récupérer la configuration actuelle
 $metaboxes = get_option('ugm_metaboxes', array());
 $post_types = get_post_types(array('public' => true), 'objects');
+$taxonomies = get_taxonomies(array('public' => true), 'objects');
 ?>
 
 <div class="wrap">
@@ -94,7 +96,7 @@ $post_types = get_post_types(array('public' => true), 'objects');
             <?php if (!empty($metaboxes)): ?>
                 <?php foreach ($metaboxes as $index => $metabox): ?>
                     <div class="ugm-metabox-config" data-index="<?php echo $index; ?>">
-                        <?php render_metabox_config($metabox, $index, $post_types); ?>
+                        <?php render_metabox_config($metabox, $index, $post_types, $taxonomies); ?>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -144,6 +146,17 @@ $post_types = get_post_types(array('public' => true), 'objects');
                             <?php $pt_label = is_object($post_type) && !empty($post_type->label) ? $post_type->label : $pt_name; ?>
                             <input type="checkbox" name="metaboxes[{{INDEX}}][post_types][]" value="<?php echo esc_attr($pt_name); ?>">
                             <?php echo esc_html($pt_label); ?>
+                        </label><br>
+                    <?php endforeach; ?>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php _e('Taxonomies', 'up-gutenberg-metabox'); ?></th>
+                <td>
+                    <?php foreach ($taxonomies as $taxonomy): ?>
+                        <label>
+                            <input type="checkbox" name="metaboxes[{{INDEX}}][taxonomies][]" value="<?php echo esc_attr($taxonomy->name); ?>">
+                            <?php echo esc_html($taxonomy->label); ?>
                         </label><br>
                     <?php endforeach; ?>
                 </td>
@@ -301,7 +314,8 @@ $post_types = get_post_types(array('public' => true), 'objects');
 /**
  * Fonction pour afficher la configuration d'une metabox existante
  */
-function render_metabox_config($metabox, $index, $post_types) {
+function render_metabox_config($metabox, $index, $post_types, $taxonomies = array()) {
+    $metabox_taxonomies = isset($metabox['taxonomies']) ? $metabox['taxonomies'] : array();
     ?>
     <div class="ugm-metabox-header">
         <h3>
@@ -332,6 +346,17 @@ function render_metabox_config($metabox, $index, $post_types) {
                     <label>
                         <input type="checkbox" name="metaboxes[<?php echo $index; ?>][post_types][]" value="<?php echo esc_attr($post_type->name); ?>" <?php checked(in_array($post_type->name, $metabox['post_types'])); ?>>
                         <?php echo esc_html($post_type->label); ?>
+                    </label><br>
+                <?php endforeach; ?>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><?php _e('Taxonomies', 'up-gutenberg-metabox'); ?></th>
+            <td>
+                <?php foreach ($taxonomies as $taxonomy): ?>
+                    <label>
+                        <input type="checkbox" name="metaboxes[<?php echo $index; ?>][taxonomies][]" value="<?php echo esc_attr($taxonomy->name); ?>" <?php checked(in_array($taxonomy->name, $metabox_taxonomies)); ?>>
+                        <?php echo esc_html($taxonomy->label); ?>
                     </label><br>
                 <?php endforeach; ?>
             </td>

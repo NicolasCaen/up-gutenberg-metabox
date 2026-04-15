@@ -256,7 +256,8 @@
     max-width: 400px;
 }
 
-.ugm-metabox-table .ugm-binding-copy {
+.ugm-metabox-table .ugm-binding-copy,
+.form-field .ugm-binding-copy {
     margin-left: 8px;
     padding: 0 6px;
     min-width: 32px;
@@ -265,15 +266,18 @@
     vertical-align: middle;
 }
 
-.ugm-metabox-table .ugm-binding-copy .dashicons {
+.ugm-metabox-table .ugm-binding-copy .dashicons,
+.form-field .ugm-binding-copy .dashicons {
     line-height: 28px;
 }
 
-.ugm-metabox-table .ugm-binding-copy-formatted {
+.ugm-metabox-table .ugm-binding-copy-formatted,
+.form-field .ugm-binding-copy-formatted {
     position: relative;
 }
 
-.ugm-metabox-table .ugm-binding-copy-formatted .ugm-binding-copy-suffix {
+.ugm-metabox-table .ugm-binding-copy-formatted .ugm-binding-copy-suffix,
+.form-field .ugm-binding-copy-formatted .ugm-binding-copy-suffix {
     display: inline-block;
     margin-left: 2px;
     font-size: 11px;

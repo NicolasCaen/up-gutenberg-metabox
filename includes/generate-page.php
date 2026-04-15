@@ -30,6 +30,22 @@ if (isset($_POST['generate_root'])) {
         
         if ($result['success']) {
             echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($result['message']) . '</p></div>';
+            
+            // Auto-include dans functions.php si demandé
+            if (!empty($_POST['auto_include_functions'])) {
+                $functions_file = get_stylesheet_directory() . '/functions.php';
+                $include_line = "include_once 'functions/metabox/root.php';";
+                if (file_exists($functions_file)) {
+                    $contents = file_get_contents($functions_file);
+                    if (strpos($contents, $include_line) === false) {
+                        $contents = rtrim($contents) . "\n\n" . $include_line . "\n";
+                        file_put_contents($functions_file, $contents);
+                        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Inclusion ajoutée dans functions.php.', 'up-gutenberg-metabox') . '</p></div>';
+                    } else {
+                        echo '<div class="notice notice-info is-dismissible"><p>' . esc_html__('L\'inclusion existe déjà dans functions.php.', 'up-gutenberg-metabox') . '</p></div>';
+                    }
+                }
+            }
         } else {
             echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($result['message']) . '</p></div>';
         }
@@ -72,6 +88,7 @@ if (isset($_POST['import_metaboxes'])) {
                         </th>
                         <th scope="col"><?php _e('Titre', 'up-gutenberg-metabox'); ?></th>
                         <th scope="col"><?php _e('Post Types', 'up-gutenberg-metabox'); ?></th>
+                        <th scope="col"><?php _e('Taxonomies', 'up-gutenberg-metabox'); ?></th>
                         <th scope="col"><?php _e('Nombre de champs', 'up-gutenberg-metabox'); ?></th>
                         <th scope="col"><?php _e('Statut', 'up-gutenberg-metabox'); ?></th>
                         <th scope="col"><?php _e('Actions', 'up-gutenberg-metabox'); ?></th>
@@ -89,7 +106,10 @@ if (isset($_POST['import_metaboxes'])) {
                                 <strong><?php echo esc_html($metabox['title']); ?></strong>
                             </td>
                             <td>
-                                <?php echo esc_html(implode(', ', $metabox['post_types'])); ?>
+                                <?php echo esc_html(implode(', ', isset($metabox['post_types']) ? $metabox['post_types'] : array())); ?>
+                            </td>
+                            <td>
+                                <?php echo esc_html(implode(', ', isset($metabox['taxonomies']) ? $metabox['taxonomies'] : array())); ?>
                             </td>
                             <td>
                                 <?php echo count($metabox['fields']); ?>
@@ -122,6 +142,20 @@ if (isset($_POST['import_metaboxes'])) {
                     <?php wp_nonce_field('ugm_generate_action', 'ugm_generate_nonce'); ?>
                     <p><?php _e('Générer le fichier root.php avec les metaboxes sélectionnées:', 'up-gutenberg-metabox'); ?></p>
                     <div id="selected-metaboxes-container"></div>
+                    <?php
+                    $functions_file = get_stylesheet_directory() . '/functions.php';
+                    $include_line = "include_once 'functions/metabox/root.php';";
+                    $already_included = file_exists($functions_file) && strpos(file_get_contents($functions_file), $include_line) !== false;
+                    ?>
+                    <p>
+                        <label>
+                            <input type="checkbox" name="auto_include_functions" value="1" <?php checked(!$already_included); ?> <?php disabled($already_included); ?> />
+                            <?php _e('Ajouter automatiquement l\'include dans functions.php', 'up-gutenberg-metabox'); ?>
+                            <?php if ($already_included): ?>
+                                <em style="color:green;"><?php _e('(déjà inclus)', 'up-gutenberg-metabox'); ?></em>
+                            <?php endif; ?>
+                        </label>
+                    </p>
                     <button type="submit" name="generate_root" class="button button-primary">
                         <?php _e('Générer root.php', 'up-gutenberg-metabox'); ?>
                     </button>

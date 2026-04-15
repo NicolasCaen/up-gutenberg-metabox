@@ -147,10 +147,11 @@ jQuery(document).ready(function($) {
                 return false;
             }
             
-            // Vérifier qu'au moins un post type est sélectionné
+            // Vérifier qu'au moins un post type ou une taxonomie est sélectionné
             const hasPostType = $(this).find('input[name*="[post_types]"]:checked').length > 0;
-            if (!hasPostType) {
-                errors.push('Chaque metabox doit être assignée à au moins un post type.');
+            const hasTaxonomy = $(this).find('input[name*="[taxonomies]"]:checked').length > 0;
+            if (!hasPostType && !hasTaxonomy) {
+                errors.push('Chaque metabox doit être assignée à au moins un post type ou une taxonomie.');
                 isValid = false;
                 return false;
             }

@@ -121,7 +121,8 @@ class UGM_Code_Generator {
 
         $code .= "\n";
         $code .= "add_action('admin_enqueue_scripts', function(\$hook) {\n";
-        $code .= "    if (!in_array(\$hook, array('post.php','post-new.php'), true)) {\n";
+        $code .= "    \$allowed = array('post.php', 'post-new.php', 'edit-tags.php', 'term.php');\n";
+        $code .= "    if (!in_array(\$hook, \$allowed, true)) {\n";
         $code .= "        return;\n";
         $code .= "    }\n";
         $code .= "    if (defined('UGM_PLUGIN_VERSION')) {\n";
@@ -141,6 +142,35 @@ class UGM_Code_Generator {
         $code .= "    wp_localize_script('ugm-metabox-gallery', 'ugm_gallery_i18n', array(\n";
         $code .= "        'selectImages' => __('Choisir des images', 'textdomain'),\n";
         $code .= "        'remove' => __('Retirer', 'textdomain'),\n";
+        $code .= "    ));\n";
+        $code .= "});\n\n";
+
+        // Register ugm/term-meta binding source
+        $code .= "// Source de binding pour les term meta\n";
+        $code .= "add_action('init', function() {\n";
+        $code .= "    if (!function_exists('register_block_bindings_source')) {\n";
+        $code .= "        return;\n";
+        $code .= "    }\n";
+        $code .= "    if (defined('UGM_PLUGIN_VERSION')) {\n";
+        $code .= "        return;\n";
+        $code .= "    }\n";
+        $code .= "    register_block_bindings_source('ugm/term-meta', array(\n";
+        $code .= "        'label' => __('Term Meta', 'textdomain'),\n";
+        $code .= "        'get_value_callback' => function(\$source_args, \$block_instance, \$attribute_name) {\n";
+        $code .= "            if (empty(\$source_args['key'])) return null;\n";
+        $code .= "            \$meta_key = \$source_args['key'];\n";
+        $code .= "            if (is_tax() || is_category() || is_tag()) {\n";
+        $code .= "                \$term = get_queried_object();\n";
+        $code .= "                if (\$term instanceof \\WP_Term) {\n";
+        $code .= "                    return get_term_meta(\$term->term_id, \$meta_key, true);\n";
+        $code .= "                }\n";
+        $code .= "            }\n";
+        $code .= "            if (!empty(\$source_args['term_id'])) {\n";
+        $code .= "                return get_term_meta(absint(\$source_args['term_id']), \$meta_key, true);\n";
+        $code .= "            }\n";
+        $code .= "            return null;\n";
+        $code .= "        },\n";
+        $code .= "        'uses_context' => array('postId', 'postType'),\n";
         $code .= "    ));\n";
         $code .= "});\n";
         
@@ -272,6 +302,9 @@ class UGM_Code_Generator {
             "    function buildBindingSnippet(metaKey) {\n" .
             "        return \"<!-- wp:paragraph {\\\"metadata\\\":{\\\"bindings\\\":{\\\"content\\\":{\\\"source\\\":\\\"core/post-meta\\\",\\\"args\\\":{\\\"key\\\":\\\"\" + metaKey + \"\\\"}}}}} -->\\n\\n<!-- /wp:paragraph -->\";\n" .
             "    }\n\n" .
+            "    function buildTermBindingSnippet(metaKey) {\n" .
+            "        return \"<!-- wp:paragraph {\\\"metadata\\\":{\\\"bindings\\\":{\\\"content\\\":{\\\"source\\\":\\\"ugm/term-meta\\\",\\\"args\\\":{\\\"key\\\":\\\"\" + metaKey + \"\\\"}}}}} -->\\n\\n<!-- /wp:paragraph -->\";\n" .
+            "    }\n\n" .
             "    function isUGMMetabox(\$postbox) {\n" .
             "        const hasPluginNonce = \$postbox.find('input[type=\\\"hidden\\\"][name^=\\\"ugm_metabox_nonce_\\\"]').length > 0;\n" .
             "        const hasThemeNonce = \$postbox.find('input[type=\\\"hidden\\\"][name^=\\\"metabox_nonce_\\\"]').length > 0;\n" .
@@ -352,15 +385,61 @@ class UGM_Code_Generator {
             "        const \$postbox = $(this);\n" .
             "        if (!isUGMMetabox(\$postbox)) return;\n" .
             "        injectButtonsIntoMetabox(\$postbox);\n" .
+            "    });\n\n" .
+            "    // Taxonomy term screens: inject buttons on fields with data-ugm-binding\n" .
+            "    $('[data-ugm-binding=\"1\"]').each(function() {\n" .
+            "        const \$container = $(this);\n" .
+            "        const \$label = \$container.find('label[for]').first();\n" .
+            "        let metaKey = (\$label.attr('for') || '').trim();\n" .
+            "        if (!metaKey) {\n" .
+            "            const \$inp = \$container.find('input, textarea, select').first();\n" .
+            "            metaKey = (\$inp.attr('name') || '').trim();\n" .
+            "        }\n" .
+            "        if (!metaKey) return;\n" .
+            "        const \$input = \$container.find('input, textarea, select').first();\n" .
+            "        if (!\$input.length) return;\n" .
+            "        if (\$container.find('.ugm-binding-copy').length) return;\n\n" .
+            "        const \$btn = $(\n" .
+            "            '<button type=\\\"button\\\" class=\\\"button button-secondary ugm-binding-copy\\\" aria-label=\\\"Copier le snippet Block Binding\\\">' +\n" .
+            "                '<span class=\\\"dashicons dashicons-clipboard\\\"></span>' +\n" .
+            "            '</button>'\n" .
+            "        );\n" .
+            "        \$btn.on('click', function() {\n" .
+            "            const snippet = buildTermBindingSnippet(metaKey);\n" .
+            "            const original = \$btn.html();\n" .
+            "            copyToClipboard(snippet).then(function() {\n" .
+            "                \$btn.text('Copié');\n" .
+            "                setTimeout(function(){ \$btn.html(original); }, 800);\n" .
+            "            }).catch(function(){ alert('Impossible de copier.'); });\n" .
+            "        });\n" .
+            "        \$input.after(\$btn);\n\n" .
+            "        if (\$container.data('ugm-derived')) {\n" .
+            "            const formattedKey = metaKey + '_formatted';\n" .
+            "            const \$btnF = $(\n" .
+            "                '<button type=\\\"button\\\" class=\\\"button button-secondary ugm-binding-copy ugm-binding-copy-formatted\\\" aria-label=\\\"Copier (_formatted)\\\">' +\n" .
+            "                    '<span class=\\\"dashicons dashicons-clipboard\\\"></span>' +\n" .
+            "                    '<span class=\\\"ugm-binding-copy-suffix\\\">F</span>' +\n" .
+            "                '</button>'\n" .
+            "            );\n" .
+            "            \$btnF.on('click', function() {\n" .
+            "                const snippet = buildTermBindingSnippet(formattedKey);\n" .
+            "                const original = \$btnF.html();\n" .
+            "                copyToClipboard(snippet).then(function() {\n" .
+            "                    \$btnF.text('Copié');\n" .
+            "                    setTimeout(function(){ \$btnF.html(original); }, 800);\n" .
+            "                }).catch(function(){ alert('Impossible de copier.'); });\n" .
+            "            });\n" .
+            "            \$btn.after(\$btnF);\n" .
+            "        }\n" .
             "    });\n" .
             "});\n";
     }
 
     private function get_binding_copy_css_code() {
-        return ".ugm-metabox-table .ugm-binding-copy{margin-left:8px;padding:0 6px;min-width:32px;height:30px;line-height:28px;vertical-align:middle;}" .
-            ".ugm-metabox-table .ugm-binding-copy .dashicons{line-height:28px;}" .
-            ".ugm-metabox-table .ugm-binding-copy-formatted{position:relative;}" .
-            ".ugm-metabox-table .ugm-binding-copy-formatted .ugm-binding-copy-suffix{display:inline-block;margin-left:2px;font-size:11px;font-weight:700;line-height:1;vertical-align:middle;}";
+        return ".ugm-metabox-table .ugm-binding-copy,.form-field .ugm-binding-copy{margin-left:8px;padding:0 6px;min-width:32px;height:30px;line-height:28px;vertical-align:middle;}" .
+            ".ugm-metabox-table .ugm-binding-copy .dashicons,.form-field .ugm-binding-copy .dashicons{line-height:28px;}" .
+            ".ugm-metabox-table .ugm-binding-copy-formatted,.form-field .ugm-binding-copy-formatted{position:relative;}" .
+            ".ugm-metabox-table .ugm-binding-copy-formatted .ugm-binding-copy-suffix,.form-field .ugm-binding-copy-formatted .ugm-binding-copy-suffix{display:inline-block;margin-left:2px;font-size:11px;font-weight:700;line-height:1;vertical-align:middle;}";
     }
 
     private function get_gallery_js_code() {
@@ -547,7 +626,8 @@ class UGM_Code_Generator {
         $code .= "    private static \$instance = null;\n";
         $code .= "    private \$metabox_id = '{$metabox['id']}';\n";
         $code .= "    private \$metabox_title = '" . addslashes($metabox['title']) . "';\n";
-        $code .= "    private \$post_types = array(" . $this->array_to_string($metabox['post_types']) . ");\n\n";
+        $code .= "    private \$post_types = array(" . $this->array_to_string(isset($metabox['post_types']) ? $metabox['post_types'] : array()) . ");\n";
+        $code .= "    private \$taxonomies = array(" . $this->array_to_string(isset($metabox['taxonomies']) ? $metabox['taxonomies'] : array()) . ");\n\n";
         
         // Singleton
         $code .= "    public static function get_instance() {\n";
@@ -559,8 +639,18 @@ class UGM_Code_Generator {
         
         // Constructeur
         $code .= "    private function __construct() {\n";
-        $code .= "        add_action('add_meta_boxes', array(\$this, 'add_metabox'));\n";
-        $code .= "        add_action('save_post', array(\$this, 'save_metabox'));\n";
+        $code .= "        if (!empty(\$this->post_types)) {\n";
+        $code .= "            add_action('add_meta_boxes', array(\$this, 'add_metabox'));\n";
+        $code .= "            add_action('save_post', array(\$this, 'save_metabox'));\n";
+        $code .= "        }\n";
+        $code .= "        if (!empty(\$this->taxonomies)) {\n";
+        $code .= "            foreach (\$this->taxonomies as \$taxonomy) {\n";
+        $code .= "                add_action(\$taxonomy . '_add_form_fields', array(\$this, 'render_taxonomy_add_fields'), 10, 1);\n";
+        $code .= "                add_action(\$taxonomy . '_edit_form_fields', array(\$this, 'render_taxonomy_edit_fields'), 10, 2);\n";
+        $code .= "                add_action('created_' . \$taxonomy, array(\$this, 'save_taxonomy_meta'), 10, 2);\n";
+        $code .= "                add_action('edited_' . \$taxonomy, array(\$this, 'save_taxonomy_meta'), 10, 2);\n";
+        $code .= "            }\n";
+        $code .= "        }\n";
         $code .= "        add_action('init', array(\$this, 'register_meta_fields'));\n";
         $code .= "    }\n\n";
         
@@ -601,6 +691,22 @@ class UGM_Code_Generator {
                     $code .= "            ));\n";
                 }
                 $code .= "        }\n";
+                $code .= "        foreach (\$this->taxonomies as \$taxonomy) {\n";
+                $code .= "            register_term_meta(\$taxonomy, '{$field['name']}', array(\n";
+                $code .= "                'single' => true,\n";
+                $code .= "                'type' => '{$meta_type}',\n";
+                $code .= "                'show_in_rest' => true,\n";
+                $code .= "                'auth_callback' => function() { return current_user_can('edit_posts'); }\n";
+                $code .= "            ));\n";
+                if (!empty($field['derived_enabled'])) {
+                    $code .= "            register_term_meta(\$taxonomy, '{$field['name']}_formatted', array(\n";
+                    $code .= "                'single' => true,\n";
+                    $code .= "                'type' => 'string',\n";
+                    $code .= "                'show_in_rest' => true,\n";
+                    $code .= "                'auth_callback' => function() { return current_user_can('edit_posts'); }\n";
+                    $code .= "            ));\n";
+                }
+                $code .= "        }\n";
             }
         }
         $code .= "    }\n\n";
@@ -629,7 +735,19 @@ class UGM_Code_Generator {
             $code .= $this->generate_field_save_code($field);
         }
         
-        $code .= "    }\n";
+        $code .= "    }\n\n";
+
+        // Taxonomy: render add fields
+        $code .= $this->generate_taxonomy_render_add_code($metabox);
+
+        // Taxonomy: render edit fields
+        $code .= $this->generate_taxonomy_render_edit_code($metabox);
+
+        // Taxonomy: render single field helper
+        $code .= $this->generate_taxonomy_render_field_code($metabox);
+
+        // Taxonomy: save term meta
+        $code .= $this->generate_taxonomy_save_code($metabox);
         
         // Fermer la classe
         $code .= "}\n\n";
@@ -787,6 +905,180 @@ class UGM_Code_Generator {
         }
     }
     
+    /**
+     * Générer le code render_taxonomy_add_fields
+     */
+    private function generate_taxonomy_render_add_code($metabox) {
+        $code = "    public function render_taxonomy_add_fields(\$taxonomy) {\n";
+        $code .= "        if (!in_array(\$taxonomy, \$this->taxonomies, true)) return;\n";
+        $code .= "        wp_nonce_field('save_tax_metabox_' . \$this->metabox_id, 'tax_nonce_' . \$this->metabox_id);\n";
+        $code .= "        echo '<div class=\"form-field ugm-taxonomy-metabox\">';\n";
+        $code .= "        echo '<h3>' . esc_html(\$this->metabox_title) . '</h3>';\n";
+
+        foreach ($metabox['fields'] as $field) {
+            $binding_data = '';
+            if (!empty($field['binding_enabled'])) {
+                $binding_data = ' data-ugm-binding=\"1\"';
+                if (!empty($field['derived_enabled'])) {
+                    $binding_data .= ' data-ugm-derived=\"1\"';
+                }
+            }
+            $code .= "        echo '<div class=\"form-field\"{$binding_data}>';\n";
+            $code .= "        echo '<label for=\"{$field['name']}\">" . addslashes($field['label']) . "</label>';\n";
+            $code .= "        \$this->render_taxonomy_field('{$field['name']}', '{$field['type']}', ''";
+            if (!empty($field['options'])) {
+                $code .= ", " . var_export($field['options'], true);
+            }
+            $code .= ");\n";
+            if (!empty($field['description'])) {
+                $code .= "        echo '<p class=\"description\">" . addslashes($field['description']) . "</p>';\n";
+            }
+            $code .= "        echo '</div>';\n";
+        }
+
+        $code .= "        echo '</div>';\n";
+        $code .= "    }\n\n";
+        return $code;
+    }
+
+    /**
+     * Générer le code render_taxonomy_edit_fields
+     */
+    private function generate_taxonomy_render_edit_code($metabox) {
+        $code = "    public function render_taxonomy_edit_fields(\$term, \$taxonomy) {\n";
+        $code .= "        if (!in_array(\$taxonomy, \$this->taxonomies, true)) return;\n";
+        $code .= "        wp_nonce_field('save_tax_metabox_' . \$this->metabox_id, 'tax_nonce_' . \$this->metabox_id);\n";
+        $code .= "        echo '<tr class=\"form-field\"><th colspan=\"2\"><h3>' . esc_html(\$this->metabox_title) . '</h3></th></tr>';\n";
+
+        foreach ($metabox['fields'] as $field) {
+            $var_name = str_replace('-', '_', $field['name']);
+            $binding_data = '';
+            if (!empty($field['binding_enabled'])) {
+                $binding_data = ' data-ugm-binding=\"1\"';
+                if (!empty($field['derived_enabled'])) {
+                    $binding_data .= ' data-ugm-derived=\"1\"';
+                }
+            }
+            $code .= "        \$value_{$var_name} = get_term_meta(\$term->term_id, '{$field['name']}', true);\n";
+            $code .= "        echo '<tr class=\"form-field\"{$binding_data}>';\n";
+            $code .= "        echo '<th scope=\"row\"><label for=\"{$field['name']}\">" . addslashes($field['label']) . "</label></th>';\n";
+            $code .= "        echo '<td>';\n";
+            $code .= "        \$this->render_taxonomy_field('{$field['name']}', '{$field['type']}', \$value_{$var_name}";
+            if (!empty($field['options'])) {
+                $code .= ", " . var_export($field['options'], true);
+            }
+            $code .= ");\n";
+            if (!empty($field['description'])) {
+                $code .= "        echo '<p class=\"description\">" . addslashes($field['description']) . "</p>';\n";
+            }
+            $code .= "        echo '</td></tr>';\n";
+        }
+
+        $code .= "    }\n\n";
+        return $code;
+    }
+
+    /**
+     * Générer le code render_taxonomy_field helper
+     */
+    private function generate_taxonomy_render_field_code($metabox) {
+        $code = "    private function render_taxonomy_field(\$name, \$type, \$value = '', \$options = array()) {\n";
+        $code .= "        switch (\$type) {\n";
+        $code .= "            case 'text':\n";
+        $code .= "            case 'email':\n";
+        $code .= "            case 'url':\n";
+        $code .= "                echo '<input type=\"' . esc_attr(\$type) . '\" id=\"' . esc_attr(\$name) . '\" name=\"' . esc_attr(\$name) . '\" value=\"' . esc_attr(\$value) . '\" class=\"regular-text\" />';\n";
+        $code .= "                break;\n";
+        $code .= "            case 'textarea':\n";
+        $code .= "                echo '<textarea id=\"' . esc_attr(\$name) . '\" name=\"' . esc_attr(\$name) . '\" rows=\"5\" cols=\"50\" class=\"large-text\">' . esc_textarea(\$value) . '</textarea>';\n";
+        $code .= "                break;\n";
+        $code .= "            case 'number':\n";
+        $code .= "                echo '<input type=\"number\" id=\"' . esc_attr(\$name) . '\" name=\"' . esc_attr(\$name) . '\" value=\"' . esc_attr(\$value) . '\" class=\"small-text\" />';\n";
+        $code .= "                break;\n";
+        $code .= "            case 'checkbox':\n";
+        $code .= "                echo '<input type=\"checkbox\" id=\"' . esc_attr(\$name) . '\" name=\"' . esc_attr(\$name) . '\" value=\"1\"' . checked(\$value, '1', false) . ' />';\n";
+        $code .= "                break;\n";
+        $code .= "            case 'select':\n";
+        $code .= "                echo '<select id=\"' . esc_attr(\$name) . '\" name=\"' . esc_attr(\$name) . '\">';\n";
+        $code .= "                if (!empty(\$options)) {\n";
+        $code .= "                    foreach (\$options as \$opt_val => \$opt_label) {\n";
+        $code .= "                        echo '<option value=\"' . esc_attr(\$opt_val) . '\"' . selected(\$value, \$opt_val, false) . '>' . esc_html(\$opt_label) . '</option>';\n";
+        $code .= "                    }\n";
+        $code .= "                }\n";
+        $code .= "                echo '</select>';\n";
+        $code .= "                break;\n";
+        $code .= "            case 'gallery':\n";
+        $code .= "                \$ids = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)\$value)))));\n";
+        $code .= "                echo '<div class=\"ugm-gallery-field\" data-input=\"#' . esc_attr(\$name) . '\">';\n";
+        $code .= "                echo '<button type=\"button\" class=\"button ugm-gallery-select\">' . esc_html__('Choisir des images', 'textdomain') . '</button>';\n";
+        $code .= "                echo '<ul class=\"ugm-gallery-list\" data-name=\"' . esc_attr(\$name) . '\">';\n";
+        $code .= "                if (!empty(\$ids)) {\n";
+        $code .= "                    foreach (\$ids as \$att_id) {\n";
+        $code .= "                        \$thumb = wp_get_attachment_image(\$att_id, array(80,80), true);\n";
+        $code .= "                        if (\$thumb) {\n";
+        $code .= "                            echo '<li class=\"ugm-gallery-item\" data-id=\"' . esc_attr(\$att_id) . '\">';\n";
+        $code .= "                            echo '<span class=\"ugm-thumb\">' . \$thumb . '</span>';\n";
+        $code .= "                            echo '<button type=\"button\" class=\"button-link ugm-remove\" aria-label=\"' . esc_attr__('Retirer', 'textdomain') . '\">&times;</button>';\n";
+        $code .= "                            echo '</li>';\n";
+        $code .= "                        }\n";
+        $code .= "                    }\n";
+        $code .= "                }\n";
+        $code .= "                echo '</ul>';\n";
+        $code .= "                echo '<input type=\"hidden\" id=\"' . esc_attr(\$name) . '\" name=\"' . esc_attr(\$name) . '\" value=\"' . esc_attr(implode(',', \$ids)) . '\" />';\n";
+        $code .= "                echo '</div>';\n";
+        $code .= "                break;\n";
+        $code .= "        }\n";
+        $code .= "    }\n\n";
+        return $code;
+    }
+
+    /**
+     * Générer le code save_taxonomy_meta
+     */
+    private function generate_taxonomy_save_code($metabox) {
+        $code = "    public function save_taxonomy_meta(\$term_id, \$tt_id = 0) {\n";
+        $code .= "        if (!isset(\$_POST['tax_nonce_' . \$this->metabox_id])) return;\n";
+        $code .= "        if (!wp_verify_nonce(\$_POST['tax_nonce_' . \$this->metabox_id], 'save_tax_metabox_' . \$this->metabox_id)) return;\n\n";
+
+        foreach ($metabox['fields'] as $field) {
+            $var_name = str_replace('-', '_', $field['name']);
+
+            if ($field['type'] === 'checkbox') {
+                $code .= "        \$value_{$var_name} = isset(\$_POST['{$field['name']}']) ? '1' : '0';\n";
+            } elseif ($field['type'] === 'gallery') {
+                $code .= "        if (isset(\$_POST['{$field['name']}'])) {\n";
+                $code .= "            \$ids = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)wp_unslash(\$_POST['{$field['name']}']))))));\n";
+                $code .= "            \$value_{$var_name} = implode(',', \$ids);\n";
+                $code .= "        } else {\n";
+                $code .= "            \$value_{$var_name} = '';\n";
+                $code .= "        }\n";
+            } else {
+                $code .= "        if (isset(\$_POST['{$field['name']}'])) {\n";
+                if ($field['type'] === 'textarea') {
+                    $code .= "            \$value_{$var_name} = sanitize_textarea_field(wp_unslash(\$_POST['{$field['name']}']));\n";
+                } else {
+                    $code .= "            \$value_{$var_name} = sanitize_text_field(wp_unslash(\$_POST['{$field['name']}']));\n";
+                }
+                $code .= "        } else {\n";
+                $code .= "            \$value_{$var_name} = '';\n";
+                $code .= "        }\n";
+            }
+
+            $code .= "        update_term_meta(\$term_id, '{$field['name']}', \$value_{$var_name});\n";
+
+            if (!empty($field['derived_enabled'])) {
+                $filter = isset($field['derived_filter']) ? $field['derived_filter'] : 'identity';
+                $code .= "        \$formatted_value = \$this->apply_filter_{$filter}(\$value_{$var_name});\n";
+                $code .= "        update_term_meta(\$term_id, '{$field['name']}_formatted', \$formatted_value);\n";
+            }
+
+            $code .= "\n";
+        }
+
+        $code .= "    }\n\n";
+        return $code;
+    }
+
     /**
      * Convertir un array PHP en string pour le code
      */

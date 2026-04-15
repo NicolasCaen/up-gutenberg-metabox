@@ -1,17 +1,18 @@
 # Up Gutenberg Metabox
 
-Un plugin WordPress pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types avec une interface d'administration intuitive.
+Un plugin WordPress pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types et taxonomies avec une interface d'administration intuitive.
 
 ## Fonctionnalités
 
 - ✅ Interface d'administration simple et intuitive
 - ✅ Support de multiples metaboxes
-- ✅ Configuration par post type
+- ✅ Configuration par post type et par taxonomie
 - ✅ Types de champs variés (texte, textarea, select, checkbox, nombre, email, URL, galerie)
 - ✅ Validation des données côté client et serveur
 - ✅ Compatible avec les sites FSE WordPress
 - ✅ Interface responsive
 - ✅ Sécurisation avec nonces WordPress
+- ✅ Block Binding Gutenberg (`core/post-meta` et `ugm/term-meta`)
 
 ## Installation
 
@@ -28,6 +29,7 @@ Un plugin WordPress pour ajouter facilement des metaboxes personnalisées aux si
 3. Configurez votre metabox :
    - **Titre** : Le nom qui apparaîtra dans l'éditeur
    - **Post Types** : Sélectionnez les types de contenu où la metabox apparaîtra
+   - **Taxonomies** : Sélectionnez les taxonomies (catégories, tags, etc.) où la metabox apparaîtra
    - **Champs** : Ajoutez autant de champs que nécessaire
 
 ### Types de Champs Disponibles
@@ -45,6 +47,8 @@ Un plugin WordPress pour ajouter facilement des metaboxes personnalisées aux si
 
 Pour récupérer les valeurs des champs meta dans vos thèmes :
 
+**Pour les post types :**
+
 ```php
 // Récupérer une valeur meta
 $value = get_post_meta(get_the_ID(), 'nom_du_champ', true);
@@ -56,6 +60,20 @@ echo esc_html($value);
 $is_checked = get_post_meta(get_the_ID(), 'nom_checkbox', true) === '1';
 ```
 
+**Pour les taxonomies (termes) :**
+
+```php
+// Récupérer une valeur meta depuis un terme
+$term_id = get_queried_object_id(); // Sur une archive de taxonomie
+$value = get_term_meta($term_id, 'nom_du_champ', true);
+
+// Afficher la valeur
+echo esc_html($value);
+
+// Vérifier si une checkbox est cochée
+$is_checked = get_term_meta($term_id, 'nom_checkbox', true) === '1';
+```
+
 ## Structure du Plugin
 
 ```
@@ -63,6 +81,9 @@ up-gutenberg-metabox/
 ├── up-gutenberg-metabox.php      # Fichier principal
 ├── includes/
 │   ├── admin-page.php            # Interface d'administration
+│   ├── generate-page.php         # Page de génération de code
+│   ├── class-code-generator.php  # Générateur de code pour le thème
+│   ├── class-code-importer.php   # Importateur de code depuis le thème
 │   └── filters/                  # Filtres de données dérivées (optionnels)
 ├── assets/
 │   ├── css/
@@ -70,7 +91,8 @@ up-gutenberg-metabox/
 │   │   └── metabox-gallery.css  # Styles du champ galerie (éditeur)
 │   └── js/
 │       ├── admin.js             # Scripts d'administration (config)
-│       └── metabox-gallery.js   # Scripts du champ galerie (éditeur)
+│       ├── metabox-gallery.js   # Scripts du champ galerie (éditeur)
+│       └── metababox-binding-copy.js  # Boutons de copie Block Binding
 └── README.md                    # Documentation
 ```
 
@@ -78,10 +100,15 @@ up-gutenberg-metabox/
 
 Le plugin utilise les hooks WordPress standards :
 
-- `add_meta_boxes` : Pour ajouter les metaboxes
-- `save_post` : Pour sauvegarder les données
+- `add_meta_boxes` : Pour ajouter les metaboxes aux post types
+- `save_post` : Pour sauvegarder les données des post types
+- `{taxonomy}_add_form_fields` : Pour ajouter les champs sur l'écran d'ajout de terme
+- `{taxonomy}_edit_form_fields` : Pour ajouter les champs sur l'écran d'édition de terme
+- `created_{taxonomy}` : Pour sauvegarder les données lors de la création d'un terme
+- `edited_{taxonomy}` : Pour sauvegarder les données lors de l'édition d'un terme
 - `admin_menu` : Pour ajouter le menu d'administration
 - `admin_enqueue_scripts` : Pour charger les assets
+- `init` : Pour enregistrer les meta fields (REST API) et la source de binding `ugm/term-meta`
 
 ## Sécurité
 
@@ -168,13 +195,17 @@ array(
         'id' => 'metabox_id',
         'title' => 'Titre de la Metabox',
         'post_types' => array('post', 'page'),
+        'taxonomies' => array('category', 'post_tag'),
         'fields' => array(
             array(
                 'name' => 'nom_du_champ',
                 'label' => 'Libellé du Champ',
                 'type' => 'text',
                 'description' => 'Description optionnelle',
-                'options' => array() // Pour les champs select
+                'options' => array(), // Pour les champs select
+                'binding_enabled' => true, // Pour Gutenberg Block Binding
+                'derived_enabled' => false, // Pour les données dérivées
+                'derived_filter' => 'identity' // Filtre de données dérivées
             )
         )
     )
@@ -187,6 +218,18 @@ array(
 - **Ctrl/Cmd + N** : Ajouter une nouvelle metabox
 
 ## Changelog
+
+### Version 1.5.0
+- Nouveau: Support complet des taxonomies — les metaboxes peuvent désormais être assignées aux taxonomies (catégories, tags, taxonomies personnalisées) en plus des post types
+- Nouveau: Interfaces d'ajout et d'édition de terme avec rendu des champs taxonomy
+- Nouveau: Sauvegarde des term meta avec nonce et sanitisation complète
+- Nouveau: Enregistrement `register_term_meta` pour l'API REST (binding Gutenberg sur les taxonomies)
+- Nouveau: Source de binding personnalisée `ugm/term-meta` pour lire les term meta sur les archives de taxonomie
+- Nouveau: Boutons de copie Block Binding sur les écrans de terme (génère snippets `ugm/term-meta`)
+- Nouveau: Générateur de code étendu pour inclure les hooks taxonomy et les assets binding sur les écrans taxonomy
+- Nouveau: Colonne "Taxonomies" dans la page de génération de code
+- Nouveau: Option pour inclure automatiquement `root.php` dans `functions.php` du thème
+- Documentation: README mis à jour pour documenter le support taxonomy
 
 ### Version 1.3.3
 - Nouveau: Support complet du champ type "gallery" dans le code généré pour le thème (assets JS/CSS inclus, rendu et sauvegarde fonctionnels).

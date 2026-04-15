@@ -23,6 +23,10 @@ jQuery(document).ready(function($) {
         return "<!-- wp:paragraph {\"metadata\":{\"bindings\":{\"content\":{\"source\":\"core/post-meta\",\"args\":{\"key\":\"" + metaKey + "\"}}}}} -->\n\n<!-- /wp:paragraph -->";
     }
 
+    function buildTermBindingSnippet(metaKey) {
+        return "<!-- wp:paragraph {\"metadata\":{\"bindings\":{\"content\":{\"source\":\"ugm/term-meta\",\"args\":{\"key\":\"" + metaKey + "\"}}}}} -->\n\n<!-- /wp:paragraph -->";
+    }
+
     function isUGMMetabox($postbox) {
         const hasPluginNonce = $postbox.find('input[type="hidden"][name^="ugm_metabox_nonce_"]').length > 0;
         const hasThemeNonce = $postbox.find('input[type="hidden"][name^="metabox_nonce_"]').length > 0;
@@ -116,5 +120,72 @@ jQuery(document).ready(function($) {
         const $postbox = $(this);
         if (!isUGMMetabox($postbox)) return;
         injectButtonsIntoMetabox($postbox);
+    });
+
+    // Taxonomy term screens: inject buttons on fields with data-ugm-binding="1"
+    $('[data-ugm-binding="1"]').each(function() {
+        const $container = $(this);
+        // Find the meta key from the label[for] or from the first input/textarea/select name
+        const $label = $container.find('label[for]').first();
+        let metaKey = ($label.attr('for') || '').trim();
+        if (!metaKey) {
+            const $input = $container.find('input, textarea, select').first();
+            metaKey = ($input.attr('name') || '').trim();
+        }
+        if (!metaKey) return;
+
+        // Find the element to append the button after
+        const $input = $container.find('input, textarea, select').first();
+        if (!$input.length) return;
+
+        // Avoid duplicates
+        if ($container.find('.ugm-binding-copy').length) return;
+
+        const $btn = $(
+            '<button type="button" class="button button-secondary ugm-binding-copy" aria-label="Copier le snippet Block Binding">' +
+                '<span class="dashicons dashicons-clipboard"></span>' +
+            '</button>'
+        );
+
+        $btn.on('click', function() {
+            const snippet = buildTermBindingSnippet(metaKey);
+            const original = $btn.html();
+            copyToClipboard(snippet)
+                .then(function() {
+                    $btn.text('Copié');
+                    setTimeout(function() { $btn.html(original); }, 800);
+                })
+                .catch(function() {
+                    alert('Impossible de copier dans le presse-papier.');
+                });
+        });
+
+        $input.after($btn);
+
+        // Add _formatted button if derived is enabled
+        if ($container.data('ugm-derived')) {
+            const formattedKey = metaKey + '_formatted';
+            const $btnF = $(
+                '<button type="button" class="button button-secondary ugm-binding-copy ugm-binding-copy-formatted" aria-label="Copier le snippet Block Binding (_formatted)">' +
+                    '<span class="dashicons dashicons-clipboard"></span>' +
+                    '<span class="ugm-binding-copy-suffix">F</span>' +
+                '</button>'
+            );
+
+            $btnF.on('click', function() {
+                const snippet = buildTermBindingSnippet(formattedKey);
+                const original = $btnF.html();
+                copyToClipboard(snippet)
+                    .then(function() {
+                        $btnF.text('Copié');
+                        setTimeout(function() { $btnF.html(original); }, 800);
+                    })
+                    .catch(function() {
+                        alert('Impossible de copier dans le presse-papier.');
+                    });
+            });
+
+            $btn.after($btnF);
+        }
     });
 });

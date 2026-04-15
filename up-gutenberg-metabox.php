@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Up Gutenberg Metabox
  * Plugin URI: https://github.com/nicolasgehin/up-gutenberg-metabox
- * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types.
- * Version: 1.3.3
+ * Description: Plugin pour ajouter facilement des metaboxes personnalisées aux sites FSE (Full Site Editing). Permet de créer des champs meta personnalisés pour différents post types et taxonomies.
+ * Version: 1.5.0
  * Author: Nicolas GEHIN
  * Author URI: https://nicolasgehin.com
  * License: GPL v2 or later
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 // Définir les constantes du plugin
 define('UGM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UGM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('UGM_PLUGIN_VERSION', '1.3.2');
+define('UGM_PLUGIN_VERSION', '1.5.0');
 
 // Inclure les classes
 require_once UGM_PLUGIN_PATH . 'includes/class-code-generator.php';
@@ -83,8 +83,14 @@ class UpGutenbergMetabox {
         // Sauvegarder les données des metaboxes
         add_action('save_post', array($this, 'save_metabox_data'));
 
+        // Initialiser les metaboxes pour les taxonomies
+        add_action('init', array($this, 'register_taxonomy_hooks'), 20);
+
         // Enregistrer les metas pour le binding Gutenberg (REST)
         add_action('init', array($this, 'register_binding_meta'));
+
+        // Enregistrer la source de binding pour les term meta
+        add_action('init', array($this, 'register_term_meta_binding_source'));
 
         // Initialiser les filtres dérivés et exposer un hook pour en ajouter
         add_action('init', array($this, 'init_derived_filters'), 5);
@@ -243,6 +249,230 @@ class UpGutenbergMetabox {
     }
     
     /**
+     * Enregistrer les hooks pour les taxonomies configurées
+     */
+    public function register_taxonomy_hooks() {
+        $metaboxes = get_option('ugm_metaboxes', array());
+        $registered_taxonomies = array();
+
+        foreach ($metaboxes as $metabox) {
+            if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
+                continue;
+            }
+            if (empty($metabox['taxonomies']) || empty($metabox['fields'])) {
+                continue;
+            }
+            foreach ($metabox['taxonomies'] as $taxonomy) {
+                if (!isset($registered_taxonomies[$taxonomy])) {
+                    $registered_taxonomies[$taxonomy] = true;
+                    add_action($taxonomy . '_add_form_fields', array($this, 'render_taxonomy_add_fields'), 10, 1);
+                    add_action($taxonomy . '_edit_form_fields', array($this, 'render_taxonomy_edit_fields'), 10, 2);
+                    add_action('created_' . $taxonomy, array($this, 'save_taxonomy_meta'), 10, 2);
+                    add_action('edited_' . $taxonomy, array($this, 'save_taxonomy_meta'), 10, 2);
+                }
+            }
+        }
+    }
+
+    /**
+     * Afficher les champs sur le formulaire d'ajout de terme
+     */
+    public function render_taxonomy_add_fields($taxonomy) {
+        $metaboxes = get_option('ugm_metaboxes', array());
+
+        foreach ($metaboxes as $metabox) {
+            if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
+                continue;
+            }
+            $metabox_taxonomies = isset($metabox['taxonomies']) ? $metabox['taxonomies'] : array();
+            if (!in_array($taxonomy, $metabox_taxonomies, true) || empty($metabox['fields'])) {
+                continue;
+            }
+
+            wp_nonce_field('ugm_save_taxonomy_' . $metabox['id'], 'ugm_tax_nonce_' . $metabox['id']);
+
+            echo '<div class="form-field ugm-taxonomy-metabox">';
+            echo '<h3>' . esc_html($metabox['title']) . '</h3>';
+            foreach ($metabox['fields'] as $field) {
+                $binding_attrs = '';
+                if (!empty($field['binding_enabled'])) {
+                    $binding_attrs .= ' data-ugm-binding="1"';
+                    if (!empty($field['derived_enabled'])) {
+                        $binding_attrs .= ' data-ugm-derived="1"';
+                    }
+                }
+                echo '<div class="form-field"' . $binding_attrs . '>';
+                echo '<label for="' . esc_attr($field['name']) . '">' . esc_html($field['label']) . '</label>';
+                $this->render_taxonomy_field($field, '');
+                if (!empty($field['description'])) {
+                    echo '<p class="description">' . esc_html($field['description']) . '</p>';
+                }
+                echo '</div>';
+            }
+            echo '</div>';
+        }
+    }
+
+    /**
+     * Afficher les champs sur le formulaire d'édition de terme
+     */
+    public function render_taxonomy_edit_fields($term, $taxonomy) {
+        $metaboxes = get_option('ugm_metaboxes', array());
+
+        foreach ($metaboxes as $metabox) {
+            if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
+                continue;
+            }
+            $metabox_taxonomies = isset($metabox['taxonomies']) ? $metabox['taxonomies'] : array();
+            if (!in_array($taxonomy, $metabox_taxonomies, true) || empty($metabox['fields'])) {
+                continue;
+            }
+
+            wp_nonce_field('ugm_save_taxonomy_' . $metabox['id'], 'ugm_tax_nonce_' . $metabox['id']);
+
+            echo '<tr class="form-field ugm-taxonomy-metabox-header"><th colspan="2"><h3>' . esc_html($metabox['title']) . '</h3></th></tr>';
+            foreach ($metabox['fields'] as $field) {
+                $field_value = get_term_meta($term->term_id, $field['name'], true);
+                $binding_attrs = '';
+                if (!empty($field['binding_enabled'])) {
+                    $binding_attrs .= ' data-ugm-binding="1"';
+                    if (!empty($field['derived_enabled'])) {
+                        $binding_attrs .= ' data-ugm-derived="1"';
+                    }
+                }
+                echo '<tr class="form-field"' . $binding_attrs . '>';
+                echo '<th scope="row"><label for="' . esc_attr($field['name']) . '">' . esc_html($field['label']) . '</label></th>';
+                echo '<td>';
+                $this->render_taxonomy_field($field, $field_value);
+                if (!empty($field['description'])) {
+                    echo '<p class="description">' . esc_html($field['description']) . '</p>';
+                }
+                echo '</td>';
+                echo '</tr>';
+            }
+        }
+    }
+
+    /**
+     * Afficher un champ pour les taxonomies
+     */
+    private function render_taxonomy_field($field, $value = '') {
+        switch ($field['type']) {
+            case 'text':
+                echo '<input type="text" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+                break;
+            case 'textarea':
+                echo '<textarea id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" rows="5" cols="50" class="large-text">' . esc_textarea($value) . '</textarea>';
+                break;
+            case 'select':
+                echo '<select id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '">';
+                if (!empty($field['options'])) {
+                    foreach ($field['options'] as $option_value => $option_label) {
+                        echo '<option value="' . esc_attr($option_value) . '"' . selected($value, $option_value, false) . '>' . esc_html($option_label) . '</option>';
+                    }
+                }
+                echo '</select>';
+                break;
+            case 'checkbox':
+                echo '<input type="checkbox" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="1"' . checked($value, '1', false) . ' />';
+                break;
+            case 'number':
+                echo '<input type="number" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr($value) . '" class="small-text" />';
+                break;
+            case 'email':
+                echo '<input type="email" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+                break;
+            case 'url':
+                echo '<input type="url" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+                break;
+            case 'gallery':
+                $ids = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)$value)))));
+                echo '<div class="ugm-gallery-field" data-input="#' . esc_attr($field['name']) . '">';
+                echo '<button type="button" class="button ugm-gallery-select">' . esc_html__('Choisir des images', 'up-gutenberg-metabox') . '</button>';
+                echo '<ul class="ugm-gallery-list" data-name="' . esc_attr($field['name']) . '">';
+                if (!empty($ids)) {
+                    foreach ($ids as $att_id) {
+                        $thumb = wp_get_attachment_image($att_id, array(80,80), true);
+                        if ($thumb) {
+                            echo '<li class="ugm-gallery-item" data-id="' . esc_attr($att_id) . '">';
+                            echo '<span class="ugm-thumb">' . $thumb . '</span>';
+                            echo '<button type="button" class="button-link ugm-remove" aria-label="' . esc_attr__('Retirer', 'up-gutenberg-metabox') . '">&times;</button>';
+                            echo '</li>';
+                        }
+                    }
+                }
+                echo '</ul>';
+                echo '<input type="hidden" id="' . esc_attr($field['name']) . '" name="' . esc_attr($field['name']) . '" value="' . esc_attr(implode(',', $ids)) . '" />';
+                echo '</div>';
+                break;
+        }
+    }
+
+    /**
+     * Sauvegarder les metas d'un terme de taxonomie
+     */
+    public function save_taxonomy_meta($term_id, $tt_id = 0) {
+        $metaboxes = get_option('ugm_metaboxes', array());
+
+        foreach ($metaboxes as $metabox) {
+            if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
+                continue;
+            }
+            if (empty($metabox['taxonomies']) || empty($metabox['fields'])) {
+                continue;
+            }
+
+            $nonce_name = 'ugm_tax_nonce_' . $metabox['id'];
+            $nonce_action = 'ugm_save_taxonomy_' . $metabox['id'];
+
+            if (!isset($_POST[$nonce_name]) || !wp_verify_nonce($_POST[$nonce_name], $nonce_action)) {
+                continue;
+            }
+
+            foreach ($metabox['fields'] as $field) {
+                if (isset($_POST[$field['name']])) {
+                    $raw_value = wp_unslash($_POST[$field['name']]);
+                    if (isset($field['type']) && $field['type'] === 'textarea') {
+                        $value = sanitize_textarea_field($raw_value);
+                    } elseif (isset($field['type']) && $field['type'] === 'gallery') {
+                        $ids = array_filter(array_map('absint', array_filter(array_map('trim', explode(',', (string)$raw_value)))));
+                        $value = implode(',', $ids);
+                    } else {
+                        $value = sanitize_text_field($raw_value);
+                    }
+                    update_term_meta($term_id, $field['name'], $value);
+
+                    // Gestion de la donnée dérivée
+                    if (!empty($field['derived_enabled'])) {
+                        $derived_key = $field['name'] . '_formatted';
+                        $filter_slug = isset($field['derived_filter']) ? $field['derived_filter'] : 'identity';
+                        $derived_value = $this->apply_derived_filter($filter_slug, $value);
+                        if ($derived_value === '' || $derived_value === null) {
+                            delete_term_meta($term_id, $derived_key);
+                        } else {
+                            update_term_meta($term_id, $derived_key, $derived_value);
+                        }
+                    }
+                } else {
+                    if ($field['type'] === 'checkbox') {
+                        update_term_meta($term_id, $field['name'], '0');
+                    }
+                    if (!empty($field['derived_enabled']) && $field['type'] === 'checkbox') {
+                        $derived_key = $field['name'] . '_formatted';
+                        $filter_slug = isset($field['derived_filter']) ? $field['derived_filter'] : 'identity';
+                        $derived_value = $this->apply_derived_filter($filter_slug, '0');
+                        if ($derived_value === '' || $derived_value === null) {
+                            delete_term_meta($term_id, $derived_key);
+                        } else {
+                            update_term_meta($term_id, $derived_key, $derived_value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Enregistrer les scripts et styles d'administration
      */
     public function enqueue_admin_scripts($hook) {
@@ -254,6 +484,36 @@ class UpGutenbergMetabox {
             wp_localize_script('up-gutenberg-metabox-admin', 'ugm_ajax', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('ugm_nonce'),
+            ));
+        }
+
+        // En file d'attente des scripts pour les écrans de taxonomie
+        if (in_array($hook, array('edit-tags.php', 'term.php'), true)) {
+            wp_enqueue_media();
+            wp_enqueue_script(
+                'up-gutenberg-metabox-gallery',
+                UGM_PLUGIN_URL . 'assets/js/metabox-gallery.js',
+                array('jquery', 'jquery-ui-sortable'),
+                UGM_PLUGIN_VERSION,
+                true
+            );
+            wp_enqueue_script(
+                'up-gutenberg-metabox-binding-copy',
+                UGM_PLUGIN_URL . 'assets/js/metabox-binding-copy.js',
+                array('jquery'),
+                UGM_PLUGIN_VERSION,
+                true
+            );
+            wp_enqueue_style(
+                'up-gutenberg-metabox-gallery',
+                UGM_PLUGIN_URL . 'assets/css/metabox-gallery.css',
+                array(),
+                UGM_PLUGIN_VERSION
+            );
+            wp_enqueue_style('up-gutenberg-metabox-admin', UGM_PLUGIN_URL . 'assets/css/admin.css', array(), UGM_PLUGIN_VERSION);
+            wp_localize_script('up-gutenberg-metabox-gallery', 'ugm_gallery_i18n', array(
+                'selectImages' => __('Choisir des images', 'up-gutenberg-metabox'),
+                'remove' => __('Retirer', 'up-gutenberg-metabox'),
             ));
         }
 
@@ -452,6 +712,47 @@ class UpGutenbergMetabox {
     }
 
     /**
+     * Enregistrer la source de binding personnalisée pour les term meta
+     */
+    public function register_term_meta_binding_source() {
+        if (!function_exists('register_block_bindings_source')) {
+            return;
+        }
+
+        register_block_bindings_source('ugm/term-meta', array(
+            'label' => __('Term Meta', 'up-gutenberg-metabox'),
+            'get_value_callback' => array($this, 'get_term_meta_binding_value'),
+            'uses_context' => array('postId', 'postType'),
+        ));
+    }
+
+    /**
+     * Callback pour la source de binding ugm/term-meta
+     */
+    public function get_term_meta_binding_value($source_args, $block_instance, $attribute_name) {
+        if (empty($source_args['key'])) {
+            return null;
+        }
+
+        $meta_key = $source_args['key'];
+
+        // Sur une archive de taxonomie, récupérer le terme courant
+        if (is_tax() || is_category() || is_tag()) {
+            $term = get_queried_object();
+            if ($term instanceof \WP_Term) {
+                return get_term_meta($term->term_id, $meta_key, true);
+            }
+        }
+
+        // Si un term_id est passé explicitement dans les args
+        if (!empty($source_args['term_id'])) {
+            return get_term_meta(absint($source_args['term_id']), $meta_key, true);
+        }
+
+        return null;
+    }
+
+    /**
      * Enregistrer les metas en REST pour le Block Binding
      */
     public function register_binding_meta() {
@@ -464,7 +765,9 @@ class UpGutenbergMetabox {
             if (!empty($metabox['id']) && $this->get_metabox_source($metabox['id']) === 'theme') {
                 continue;
             }
-            if (empty($metabox['fields']) || empty($metabox['post_types'])) {
+            $has_post_types = !empty($metabox['post_types']);
+            $has_taxonomies = !empty($metabox['taxonomies']);
+            if (empty($metabox['fields']) || (!$has_post_types && !$has_taxonomies)) {
                 continue;
             }
 
@@ -509,22 +812,40 @@ class UpGutenbergMetabox {
                     $args['show_in_rest']['schema']['enum'] = array_keys($field['options']);
                 }
 
-                foreach ((array) $metabox['post_types'] as $post_type) {
-                    register_post_meta($post_type, $field['name'], $args);
+                // Enregistrer pour les post types
+                if ($has_post_types) {
+                    foreach ((array) $metabox['post_types'] as $post_type) {
+                        register_post_meta($post_type, $field['name'], $args);
+                    }
+                }
+
+                // Enregistrer pour les taxonomies
+                if ($has_taxonomies) {
+                    foreach ((array) $metabox['taxonomies'] as $taxonomy) {
+                        register_term_meta($taxonomy, $field['name'], $args);
+                    }
                 }
 
                 // Enregistrer la meta dérivée en REST si activée
                 if (!empty($field['derived_enabled'])) {
                     $derived_key = $field['name'] . '_formatted';
-                    foreach ((array)$metabox['post_types'] as $post_type) {
-                        register_post_meta($post_type, $derived_key, array(
-                            'single' => true,
-                            'type' => 'string',
-                            'show_in_rest' => array(
-                                'schema' => array('type' => 'string')
-                            ),
-                            'auth_callback' => function(){ return current_user_can('edit_posts'); }
-                        ));
+                    $derived_args = array(
+                        'single' => true,
+                        'type' => 'string',
+                        'show_in_rest' => array(
+                            'schema' => array('type' => 'string')
+                        ),
+                        'auth_callback' => function(){ return current_user_can('edit_posts'); }
+                    );
+                    if ($has_post_types) {
+                        foreach ((array)$metabox['post_types'] as $post_type) {
+                            register_post_meta($post_type, $derived_key, $derived_args);
+                        }
+                    }
+                    if ($has_taxonomies) {
+                        foreach ((array)$metabox['taxonomies'] as $taxonomy) {
+                            register_term_meta($taxonomy, $derived_key, $derived_args);
+                        }
                     }
                 }
             }
